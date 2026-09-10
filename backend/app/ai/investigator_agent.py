@@ -546,11 +546,7 @@ async def run_ai_investigator(query: str, case_id: str, db, current_user, histor
     try:
         evidence_context = query_case_context(case_id, query)
         if not evidence_context:
-            return {
-                "answer": "No processed evidence is available for this case yet. Upload and process evidence before asking questions about the case.",
-                "actions": [],
-                "supporting_evidence": []
-            }
+            evidence_context = "No specific evidence found."
         # PHASE 4: Context limits
         # Truncate overly long RAG evidence to keep within Qwen 7B optimal window (e.g. ~2000 chars)
         if len(evidence_context) > 2000:
@@ -560,18 +556,86 @@ async def run_ai_investigator(query: str, case_id: str, db, current_user, histor
         evidence_context = "Evidence search unavailable."
     
     # We allow the LLM to process FOLLOW_UP_CONTEXT internally using `history_context` and `evidence_context`.
-    # To improve intelligence, we also inject a list of known entities and relationships.
-    entity_names = [e["name"] for e in entities[:20]] # Reduced from 30 for context limit
-    if entity_names:
-        case_summary += f"\nKnown entities in this case: {', '.join(entity_names)}."
-        
-    rel_names = []
-    for r in relationships[:10]: # Reduced from 20 for context limit
-        s = next((e["name"] for e in entities if str(e["_id"]) == str(r.get("source_entity_id"))), "Unknown")
-        t = next((e["name"] for e in entities if str(e["_id"]) == str(r.get("target_entity_id"))), "Unknown")
-        rel_names.append(f"{s} --[{r.get('type')}]--> {t}")
-    if rel_names:
-        case_summary += f"\nKnown relationships: {'; '.join(rel_names)}."
+    # TARGETED ENTITY CONTEXT BUILDER
+    targeted_entities = []
+    
+    # Phase 4 & 5: Case-scoped Entity Resolution against classifier entities
+    if classifier_entities:
+        for ce in classifier_entities:
+            # We already loaded case-scoped entities at the top
+            match = next((e for e in entities if ce.lower() in e.get("name", "").lower()), None)
+            if match and match not in targeted_entities:
+                targeted_entities.append(match)
+    
+    # Phase 4 & 5: Resolve against regex as well
+    who_match = None
+    if not targeted_entities:
+        who_match = re.search(r"who is\s+([a-zA-Z\s]+)", query_clean)
+        if who_match:
+            name = who_match.group(1).strip()
+            match = next((e for e in entities if name in e.get("name", "").lower()), None)
+            if match and match not in targeted_entities:
+                targeted_entities.append(match)
+                
+    # STATE 3: Entity does not exist in current case
+    if (classifier_entities or who_match) and not targeted_entities:
+        target_name = classifier_entities[0] if classifier_entities else who_match.group(1).strip()
+        # Don't do this for generic terms
+        if target_name.lower() not in ["he", "she", "they", "this", "it"]:
+            return {
+                "answer": f"I couldn't find '{target_name}' in the current case data.",
+                "actions": [],
+                "supporting_evidence": []
+            }
+
+    targeted_context_blocks = []
+    used_sources = set()
+    
+    if targeted_entities:
+        used_sources.add("Entity records")
+        for ent in targeted_entities:
+            ent_id_str = str(ent["_id"])
+            props = ent.get("properties", {})
+            risk = ent.get("risk_score")
+            
+            # Phase 6: Targeted Entity Profile
+            block = [
+                f"TARGET ENTITY",
+                f"Name: {ent.get('name')}",
+                f"Type: {ent.get('type')}",
+                f"ID: {ent_id_str}"
+            ]
+            if risk is not None:
+                block.append(f"Risk: {risk}")
+            if props:
+                block.append(f"Properties: {props}")
+                
+            # Phase 7 & 8: Targeted Relationships with reasonable cap
+            rels = []
+            for r in relationships:
+                if str(r.get("source_entity_id")) == ent_id_str:
+                    tgt = next((e.get("name") for e in entities if str(e["_id"]) == str(r.get("target_entity_id"))), "Unknown")
+                    rels.append(f"[{ent.get('name')}] --{r.get('type')}--> [{tgt}]")
+                elif str(r.get("target_entity_id")) == ent_id_str:
+                    src = next((e.get("name") for e in entities if str(e["_id"]) == str(r.get("source_entity_id"))), "Unknown")
+                    rels.append(f"[{src}] --{r.get('type')}--> [{ent.get('name')}]")
+                    
+            if rels:
+                used_sources.add("Relationship graph")
+                block.append("RELATIONSHIPS:")
+                block.extend([f"- {rel}" for rel in rels[:20]])
+                if len(rels) > 20:
+                    block.append(f"- (...and {len(rels) - 20} more connections not shown)")
+                    
+            targeted_context_blocks.append("\n".join(block))
+            
+    if targeted_context_blocks:
+        case_summary += "\n\n" + "\n\n".join(targeted_context_blocks)
+    elif not targeted_entities and intent in ["CASE_FACT", "GRAPH_ANALYSIS"]:
+        # We don't have targeted entities, but we still want to provide SOME valid fallback facts
+        # rather than just truncating to the first 10 generic entities.
+        # However, we DO NOT limit to [:10] anymore, and we definitely DO NOT abort.
+        pass
 
     # --- PHASE 1: Enhanced Context & System Persona ---
     from datetime import datetime
@@ -598,24 +662,36 @@ async def run_ai_investigator(query: str, case_id: str, db, current_user, histor
         "STRICT GROUNDING RULES:\n"
         "1. FACT VS INFERENCE: You must clearly distinguish between established case facts (from database/evidence) and your own analytical inferences. Do not state inferences as facts.\n"
         "2. NO HALLUCINATION: Never invent entities, relationships, evidence, case dates, or graph metrics.\n"
-        "3. UNKNOWN INFORMATION: If the user asks for CASE facts that are not present, explicitly respond: 'Insufficient evidence available in this case to determine that.' Do not guess.\n"
-        "4. NO DEFINITIVE CULPABILITY: Never make a definitive guilt/innocence determination.\n"
-        "5. CASE ISOLATION: Base investigation answers ONLY on the provided Case Data, Evidence Context, and Conversation History.\n"
-        "6. RESOLVE PRONOUNS: Use the Conversation History to resolve references like 'he', 'she', or 'they'.\n"
-        "7. PROFESSIONAL TONE: Respond concisely and professionally as a senior investigator. Use bullet points for complex facts.\n"
-        "8. GENERAL KNOWLEDGE: You MAY answer general knowledge questions naturally without claiming missing case data.\n"
+        "3. MISSING INFORMATION (STATE 2): If the user asks for a property of a known targeted entity that is missing from its listed properties, respond explicitly: 'The entity is present in the case, but that information is not recorded in the available case data.'\n"
+        "4. NO RELEVANT INFORMATION (STATE 5): If the provided case context contains NO facts relevant to the query at all, explicitly respond: 'Insufficient information is available in the current case data to answer that question.'\n"
+        "5. NO DEFINITIVE CULPABILITY: Never make a definitive guilt/innocence determination.\n"
+        "6. CASE ISOLATION: Base investigation answers ONLY on the provided Case Data, Evidence Context, and Conversation History.\n"
+        "7. RESOLVE PRONOUNS: Use the Conversation History to resolve references like 'he', 'she', or 'they'.\n"
+        "8. PROFESSIONAL TONE: Respond concisely and professionally as a senior investigator. Use bullet points for complex facts.\n"
+        "9. GENERAL KNOWLEDGE: You MAY answer general knowledge questions natively without claiming missing case data.\n"
     )
     
-    user_prompt = f"Case Data:\n{case_summary}\n\nEvidence Context:\n{evidence_context}\n\nConversation History:\n{history_context}\n\nQuestion: {query}"
+    # Fix: Make sure empty ChromaDB doesn't break the system prompt or override structured case data.
+    if "No specific evidence" in evidence_context or "Evidence search unavailable" in evidence_context:
+        evidence_context_prompt = "No additional unstructured evidence available via search."
+    else:
+        evidence_context_prompt = evidence_context
+        
+    user_prompt = f"Case Data:\n{case_summary}\n\nEvidence Context:\n{evidence_context_prompt}\n\nConversation History:\n{history_context}\n\nQuestion: {query}"
     answer = await call_hf_api(system_persona, user_prompt)
     
     if not answer:
         answer = generate_fallback_answer(query, case_id, entities, relationships, evidence_context, intent, classifier_entities)
         
+    if "No additional unstructured" not in evidence_context_prompt and "No specific evidence" not in evidence_context:
+        used_sources.add("ChromaDB")
+        
+    supporting_evidence_arr = list(used_sources)
+        
     return {
         "answer": answer,
         "actions": [],
-        "supporting_evidence": ["Consulted vectorized case evidence in ChromaDB."] if (evidence_context and "No specific evidence" not in evidence_context) else []
+        "supporting_evidence": supporting_evidence_arr
     }
 
 def get_deterministic_fallback_answer(query: str, case_id: str) -> str | None:
@@ -760,7 +836,7 @@ def generate_fallback_answer(query: str, case_id: str, entities: list, relations
         return "Insufficient information is available in the current case records to answer this question."
 
     # 6. Default Fallback
-    return "Insufficient information is available in the current case records to answer this question."
+    return "Insufficient information is available in the current case data to answer that question."
 
 async def call_hf_api(system_prompt: str, user_prompt: str, model: str = None, format: str = None) -> str:
     """
