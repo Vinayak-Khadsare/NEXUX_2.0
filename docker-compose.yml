@@ -3,8 +3,6 @@ services:
     image: mongo:latest
     container_name: nexus_mongodb
     restart: unless-stopped
-    ports:
-      - "${MONGO_PORT:-27018}:27017"
     volumes:
       - mongodb_data:/data/db
     networks:
@@ -24,22 +22,32 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./data/uploads:/data/uploads
-      - ./data/chroma:/data/chroma
+      - evidence_data:/data/uploads
+      - chroma_data:/data/chroma
     environment:
       - MONGODB_URI=mongodb://mongodb:27017
       - DATABASE_NAME=${DATABASE_NAME:-nexus}
       - JWT_SECRET=${JWT_SECRET:-supersecretkey}
-      - NEXUS_LOCAL_AI_URL=http://ollama:11434
+      - NEXUS_LOCAL_AI_URL=${NEXUS_LOCAL_AI_URL:-http://ollama:11434}
       - NEXUS_LOCAL_AI_MODEL=${NEXUS_LOCAL_AI_MODEL:-qwen2.5:7b}
-      - FRONTEND_URL=http://localhost:3000
+      - NEXUS_LOCAL_AI_TIMEOUT=${NEXUS_LOCAL_AI_TIMEOUT:-300}
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USERNAME=${SMTP_USERNAME:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - SMTP_FROM_EMAIL=${SMTP_FROM_EMAIL:-}
+      - SMTP_FROM_NAME=${SMTP_FROM_NAME:-NEXUS}
     depends_on:
       mongodb:
         condition: service_healthy
-      ollama:
-        condition: service_healthy
     networks:
       - nexus_network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
 
   ollama:
     image: ollama/ollama:latest
@@ -91,24 +99,34 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        - NEXT_PUBLIC_API_URL=http://localhost:8000
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-""}
     container_name: nexus_frontend
     restart: unless-stopped
     ports:
       - "3000:3000"
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-""}
+      - BACKEND_URL=http://backend:8000
     depends_on:
       backend:
-        condition: service_started
+        condition: service_healthy
     networks:
       - nexus_network
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
 
 volumes:
   mongodb_data:
     name: nexus_mongodb_data
   ollama_data:
     name: nexus_ollama_data
+  evidence_data:
+    name: nexus_evidence_data
+  chroma_data:
+    name: nexus_chroma_data
 
 networks:
   nexus_network:
