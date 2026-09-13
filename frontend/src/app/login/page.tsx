@@ -86,12 +86,17 @@ export default function Login() {
         setTempToken(data.access_token);
         setMode("MFA");
       } else {
-        const data = await res.json();
-        setMessage({ text: data.detail || "Incorrect email or password", isError: true });
+        const text = await res.text();
+        try {
+          const data = JSON.parse(text);
+          setMessage({ text: data.detail || "Incorrect email or password", isError: true });
+        } catch (e: any) {
+          setMessage({ text: `URL: ${getApiUrl("/api/auth/login")} | Status: ${res.status} | Text: ${text.substring(0, 40)}`, isError: true });
+        }
       }
     } catch (err: any) {
       console.error(err);
-      setMessage({ text: "Unable to connect to the backend server. Please make sure it is running.", isError: true });
+      setMessage({ text: `Connection Error: ${err.message || "Failed to fetch"}`, isError: true });
     } finally {
       setLoading(false);
     }
