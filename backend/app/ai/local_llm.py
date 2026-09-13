@@ -6,6 +6,7 @@ from typing import Optional
 
 OLLAMA_URL = os.getenv("NEXUS_LOCAL_AI_URL", "http://localhost:11434")
 OLLAMA_MODEL = os.getenv("NEXUS_LOCAL_AI_MODEL", "qwen2.5:7b")
+OLLAMA_TIMEOUT = float(os.getenv("NEXUS_LOCAL_AI_TIMEOUT", "300.0"))
 
 async def generate(
     system_prompt: str,
@@ -37,7 +38,7 @@ async def generate(
         if format:
             payload["format"] = format
             
-        async with httpx.AsyncClient(timeout=60.0) as client:
+        async with httpx.AsyncClient(timeout=OLLAMA_TIMEOUT) as client:
             try:
                 response = await client.post(
                     f"{OLLAMA_URL}/api/chat",
