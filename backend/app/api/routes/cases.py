@@ -10,7 +10,7 @@ from datetime import datetime
 
 router = APIRouter()
 
-@router.post("/", response_model=CaseOut)
+@router.post("", response_model=CaseOut)
 async def create_case(case: CaseCreate, db=Depends(get_database), current_user=Depends(get_current_user)):
     case_dict = case.dict()
     case_dict["created_by"] = current_user["email"]
@@ -25,7 +25,7 @@ async def create_case(case: CaseCreate, db=Depends(get_database), current_user=D
     await log_audit_action(db, current_user["email"], "CREATE_CASE", str(result.inserted_id))
     return created_case
 
-@router.get("/", response_model=List[CaseOut])
+@router.get("", response_model=List[CaseOut])
 async def list_cases(db=Depends(get_database), current_user=Depends(get_current_user)):
     cases = await db["cases"].find().to_list(100)
     return cases

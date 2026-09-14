@@ -5,7 +5,7 @@ from app.api.routes.auth import get_current_user
 
 router = APIRouter()
 
-@router.get("/", response_model=List[Dict[str, Any]])
+@router.get("", response_model=List[Dict[str, Any]])
 async def get_audit_logs(db=Depends(get_database), current_user=Depends(get_current_user)):
     """
     Returns the 100 most recent operational logs from the audit_logs collection.

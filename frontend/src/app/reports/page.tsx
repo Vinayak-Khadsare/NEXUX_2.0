@@ -15,6 +15,7 @@ export default function ReportsPage() {
   const [relationships, setRelationships] = useState<any[]>([]);
   const [evidenceList, setEvidenceList] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const getApiUrl = (path: string) => {
     const baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
@@ -26,11 +27,12 @@ export default function ReportsPage() {
     const token = localStorage.getItem("token");
     try {
       setLoading(true);
+      setError(null);
       const [res, entRes, relRes, evRes] = await Promise.all([
-        fetch(getApiUrl(`/api/reports/?case_id=${activeCaseId}`), { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(getApiUrl(`/api/entities/?case_id=${activeCaseId}`), { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(getApiUrl(`/api/relationships/?case_id=${activeCaseId}`), { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(getApiUrl(`/api/evidence/?case_id=${activeCaseId}`), { headers: { Authorization: `Bearer ${token}` } })
+        fetch(getApiUrl(`/api/reports?case_id=${activeCaseId}`), { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(getApiUrl(`/api/entities?case_id=${activeCaseId}`), { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(getApiUrl(`/api/relationships?case_id=${activeCaseId}`), { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(getApiUrl(`/api/evidence/case/${activeCaseId}`), { headers: { Authorization: `Bearer ${token}` } })
       ]);
 
       if (res.ok) {
@@ -40,10 +42,18 @@ export default function ReportsPage() {
         if (relRes.ok) setRelationships(await relRes.json());
         if (evRes.ok) setEvidenceList(await evRes.json());
       } else {
-        console.error("Failed to generate report");
+        let errText = "Failed to generate report";
+        try {
+          const errData = await res.json();
+          if (errData.detail) errText = errData.detail;
+        } catch (e) {
+          errText = `Server error: ${res.status} ${res.statusText}`;
+        }
+        setError(errText);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      setError(err.message || "Network error occurred while fetching report.");
     } finally {
       setLoading(false);
     }
@@ -98,6 +108,13 @@ export default function ReportsPage() {
           )}
         </div>
       </div>
+
+      {error && (
+        <div className="bg-red-500/10 border border-red-500/30 text-red-500 font-bold p-4 rounded-xl text-center shadow-sm">
+          <i className="fa-solid fa-triangle-exclamation mr-2"></i>
+          {error}
+        </div>
+      )}
 
       {loading ? (
         <div className="flex flex-col items-center justify-center py-32 gap-4">

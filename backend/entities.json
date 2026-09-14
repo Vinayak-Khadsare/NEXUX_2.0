@@ -1,0 +1,13 @@
+[
+  {
+    "_id": "6a9c496ed639de13ac473142",
+    "case_id": "6a9465223c966f017fecef57",
+    "type": "COMMUNICATION",
+    "name": "E001",
+    "properties": {
+      "description": "Communicated with E002 and E003"
+    },
+    "risk_score": 0.5,
+    "source": "AI_EXTRACTED",
+    "created_by": "ramkhandekar8@gmail.com",
+    "created_at": 

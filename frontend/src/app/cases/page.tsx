@@ -44,7 +44,7 @@ export default function CasesPage() {
 
     const token = localStorage.getItem("token");
     try {
-      const res = await fetch(getApiUrl("/api/cases/"), {
+      const res = await fetch(getApiUrl("/api/cases"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

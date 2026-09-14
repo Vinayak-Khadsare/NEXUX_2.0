@@ -10,7 +10,7 @@ services:
     healthcheck:
       test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
       interval: 10s
-      timeout: 5s
+      timeout: 30s
       retries: 5
 
   backend:
@@ -46,7 +46,7 @@ services:
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
       interval: 15s
-      timeout: 5s
+      timeout: 30s
       retries: 5
 
   ollama:
@@ -67,7 +67,7 @@ services:
     healthcheck:
       test: ["CMD", "ollama", "list"]
       interval: 10s
-      timeout: 5s
+      timeout: 30s
       retries: 5
 
   ollama-init:
@@ -76,18 +76,21 @@ services:
     environment:
       - NEXUS_LOCAL_AI_MODEL=${NEXUS_LOCAL_AI_MODEL:-qwen2.5:7b}
     command: >
-      sh -c "
-      echo 'Waiting for Ollama to be healthy...';
+      sh -c '
+      echo "Waiting for Ollama to be healthy...";
       until curl -s -f http://ollama:11434/api/version > /dev/null; do sleep 2; done;
-      echo 'Ollama is up. Checking if model '$$NEXUS_LOCAL_AI_MODEL' exists...';
-      if curl -s http://ollama:11434/api/tags | grep -q '\"name\":\"'$$NEXUS_LOCAL_AI_MODEL'\"'; then
-        echo 'Model already exists. Initialization complete.';
+      echo "Ollama is up. Checking if model $$NEXUS_LOCAL_AI_MODEL exists...";
+      if curl -s http://ollama:11434/api/tags | grep -q "\"name\":\"$$NEXUS_LOCAL_AI_MODEL\""; then
+        echo "Model already exists. Initialization complete.";
       else
-        echo 'Model not found. Pulling '$$NEXUS_LOCAL_AI_MODEL'... This may take several minutes.';
-        curl -s -f -X POST http://ollama:11434/api/pull -d '{\"name\":\"'$$NEXUS_LOCAL_AI_MODEL'\"}';
-        echo 'Model pull complete.';
-      fi
-      "
+        echo "Model not found. Pulling $$NEXUS_LOCAL_AI_MODEL... This may take several minutes.";
+        curl -s -f -X POST http://ollama:11434/api/pull -d "{\"name\":\"$$NEXUS_LOCAL_AI_MODEL\"}";
+        echo "Model pull complete.";
+      fi;
+      echo "Pre-loading model into GPU to prevent cold-start timeout...";
+      curl -s -X POST http://ollama:11434/api/generate -d "{\"model\": \"$$NEXUS_LOCAL_AI_MODEL\", \"keep_alive\": -1}" > /dev/null;
+      echo "Model pre-loaded successfully!";
+      '
     depends_on:
       ollama:
         condition: service_healthy
@@ -116,7 +119,7 @@ services:
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:3000"]
       interval: 15s
-      timeout: 5s
+      timeout: 30s
       retries: 5
 
 volumes:

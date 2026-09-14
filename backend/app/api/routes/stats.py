@@ -5,7 +5,7 @@ from app.api.routes.auth import get_current_user
 
 router = APIRouter()
 
-@router.get("/", response_model=Dict[str, Any])
+@router.get("", response_model=Dict[str, Any])
 async def get_system_stats(db=Depends(get_database), current_user=Depends(get_current_user)):
     """
     Returns global system statistics for the current user's dashboard and profile.

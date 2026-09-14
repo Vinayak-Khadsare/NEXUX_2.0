@@ -77,7 +77,7 @@ export default function GlobalChatbot() {
 
     const token = localStorage.getItem("token");
     try {
-      const res = await fetch(getApiUrl(`/api/chat/?query=${encodeURIComponent(text)}&case_id=${currentScopeId}`), {
+      const res = await fetch(getApiUrl(`/api/chat?query=${encodeURIComponent(text)}&case_id=${currentScopeId}`), {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` }
       });

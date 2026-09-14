@@ -30,7 +30,7 @@ async def create_entity(entity: EntityCreate, db=Depends(get_database), current_
     created_entity = await db["entities"].find_one({"_id": result.inserted_id})
     return created_entity
 
-@router.get("/", response_model=List[EntityOut])
+@router.get("", response_model=List[EntityOut])
 async def list_entities(case_id: str, db=Depends(get_database), current_user=Depends(get_current_user)):
     entities = await db["entities"].find({"$or": [{"case_id": case_id}, {"caseId": case_id}]}).to_list(1000)
     print(f"[ENTITY_API] requested_case_id={case_id} found={len(entities)}")

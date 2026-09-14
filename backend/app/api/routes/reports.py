@@ -10,7 +10,7 @@ from app.ai.local_llm import generate
 
 router = APIRouter()
 
-@router.get("/")
+@router.get("")
 async def generate_report(
     case_id: str,
     db: AsyncIOMotorDatabase = Depends(get_database),

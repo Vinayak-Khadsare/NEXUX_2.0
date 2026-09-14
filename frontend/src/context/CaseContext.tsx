@@ -57,7 +57,7 @@ export function CaseProvider({ children }: { children: React.ReactNode }) {
     setLoadingCases(true);
 
     try {
-      const res = await fetch(getApiUrl("/api/cases/"), {
+      const res = await fetch(getApiUrl("/api/cases"), {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {

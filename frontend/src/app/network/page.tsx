@@ -101,7 +101,7 @@ function NetworkView() {
       }
       
       try {
-        const res = await fetch(getApiUrl(`/api/evidence/?case_id=${activeCaseId}`), {
+        const res = await fetch(getApiUrl(`/api/evidence/case/${activeCaseId}`), {
           headers: { Authorization: `Bearer ${token}` }
         });
         

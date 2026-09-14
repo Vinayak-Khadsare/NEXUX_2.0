@@ -29,7 +29,7 @@ async def create_relationship(relationship: RelationshipCreate, db=Depends(get_d
     created_rel = await db["relationships"].find_one({"_id": result.inserted_id})
     return created_rel
 
-@router.get("/", response_model=List[RelationshipOut])
+@router.get("", response_model=List[RelationshipOut])
 async def list_relationships(case_id: str, db=Depends(get_database), current_user=Depends(get_current_user)):
     relationships = await db["relationships"].find({"$or": [{"case_id": case_id}, {"caseId": case_id}]}).to_list(5000)
     print(f"[RELATIONSHIPS_API] requested_case_id={case_id} found={len(relationships)}")
