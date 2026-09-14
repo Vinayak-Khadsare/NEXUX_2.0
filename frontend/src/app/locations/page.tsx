@@ -64,9 +64,9 @@ export default function LocationsPage() {
     try {
       setLoading(true);
       const [entRes, relRes, evRes] = await Promise.all([
-        fetch(getApiUrl(`/api/entities/?case_id=${activeCaseId}`), { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(getApiUrl(`/api/relationships/?case_id=${activeCaseId}`), { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(getApiUrl(`/api/evidence/?case_id=${activeCaseId}`), { headers: { Authorization: `Bearer ${token}` } })
+        fetch(getApiUrl(`/api/entities?case_id=${activeCaseId}`), { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(getApiUrl(`/api/relationships?case_id=${activeCaseId}`), { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(getApiUrl(`/api/evidence/case/${activeCaseId}`), { headers: { Authorization: `Bearer ${token}` } })
       ]);
 
       let ents: any[] = [];
@@ -135,7 +135,10 @@ export default function LocationsPage() {
   const locations = useMemo(() => {
     return entities.filter((ent: any) => {
       const props = ent.properties || {};
-      const hasPropsCoords = props.latitude !== undefined || props.lat !== undefined;
+      const locObj = props.location || props.coordinates || {};
+      const rawLat = props.latitude ?? props.lat ?? locObj.latitude ?? locObj.lat;
+      const rawLng = props.longitude ?? props.lng ?? props.lon ?? locObj.longitude ?? locObj.lng ?? locObj.lon;
+      const hasPropsCoords = rawLat !== undefined && rawLng !== undefined;
       const hasGeoCoords = !!geocodedLocations[ent._id];
       return ent.type === "LOCATION" || hasPropsCoords || hasGeoCoords;
     }).map((ent: any) => {
@@ -144,11 +147,21 @@ export default function LocationsPage() {
       let lng = null;
       let hasCoords = false;
       
-      if (props.latitude !== undefined || props.lat !== undefined) {
-        lat = parseFloat(props.latitude || props.lat);
-        lng = parseFloat(props.longitude || props.lng);
-        hasCoords = true;
-      } else if (geocodedLocations[ent._id]) {
+      const locObj = props.location || props.coordinates || {};
+      const rawLat = props.latitude ?? props.lat ?? locObj.latitude ?? locObj.lat;
+      const rawLng = props.longitude ?? props.lng ?? props.lon ?? locObj.longitude ?? locObj.lng ?? locObj.lon;
+      
+      if (rawLat !== undefined && rawLng !== undefined) {
+        const parsedLat = parseFloat(rawLat);
+        const parsedLng = parseFloat(rawLng);
+        if (!isNaN(parsedLat) && !isNaN(parsedLng) && parsedLat >= -90 && parsedLat <= 90 && parsedLng >= -180 && parsedLng <= 180) {
+          lat = parsedLat;
+          lng = parsedLng;
+          hasCoords = true;
+        }
+      } 
+      
+      if (!hasCoords && geocodedLocations[ent._id]) {
         lat = geocodedLocations[ent._id].lat;
         lng = geocodedLocations[ent._id].lng;
         hasCoords = true;
