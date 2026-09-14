@@ -50,8 +50,16 @@ async def get_global_network(db=Depends(get_database), current_user=Depends(get_
         )
         
     for rel in relationships:
-        source_canonical = entity_id_map.get(str(rel.get("source_entity_id")))
-        target_canonical = entity_id_map.get(str(rel.get("target_entity_id")))
+        src_id = str(rel.get("source_entity_id") or rel.get("source_id") or rel.get("source"))
+        tgt_id = str(rel.get("target_entity_id") or rel.get("target_id") or rel.get("target"))
+        
+        if isinstance(rel.get("source"), dict):
+            src_id = str(rel.get("source").get("id", rel.get("source").get("_id", src_id)))
+        if isinstance(rel.get("target"), dict):
+            tgt_id = str(rel.get("target").get("id", rel.get("target").get("_id", tgt_id)))
+
+        source_canonical = entity_id_map.get(src_id)
+        target_canonical = entity_id_map.get(tgt_id)
         
         if source_canonical and target_canonical:
             if source_canonical != target_canonical:

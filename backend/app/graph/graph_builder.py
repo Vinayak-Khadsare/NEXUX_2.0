@@ -16,8 +16,15 @@ def build_graph(entities: List[Dict], relationships: List[Dict]) -> nx.Graph:
         )
 
     for rel in relationships:
-        source = str(rel.get("source_entity_id"))
-        target = str(rel.get("target_entity_id"))
+        source = str(rel.get("source_entity_id") or rel.get("source_id") or rel.get("source"))
+        target = str(rel.get("target_entity_id") or rel.get("target_id") or rel.get("target"))
+        
+        # If they are dicts (like when stored as embedded objects), try to extract id
+        if isinstance(rel.get("source"), dict):
+            source = str(rel.get("source").get("id", rel.get("source").get("_id", source)))
+        if isinstance(rel.get("target"), dict):
+            target = str(rel.get("target").get("id", rel.get("target").get("_id", target)))
+
         if not source or not target or source == "None" or target == "None":
             continue
         G.add_edge(
