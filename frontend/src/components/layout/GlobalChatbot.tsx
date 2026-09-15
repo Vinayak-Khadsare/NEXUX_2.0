@@ -77,9 +77,19 @@ export default function GlobalChatbot() {
 
     const token = localStorage.getItem("token");
     try {
-      const res = await fetch(getApiUrl(`/api/chat?query=${encodeURIComponent(text)}&case_id=${currentScopeId}`), {
+      const payload = {
+        query: text,
+        case_id: currentScopeId || "all",
+        history: messages.map(m => ({ sender: m.sender, text: m.text }))
+      };
+      
+      const res = await fetch(getApiUrl(`/api/chat/`), {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { 
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}` 
+        },
+        body: JSON.stringify(payload)
       });
 
       if (res.ok) {

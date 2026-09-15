@@ -35,7 +35,7 @@ const navGroups = [
     title: "AI",
     items: [
       { name: "NEXUS AI", path: "/ai-investigator", icon: <i className="fa-solid fa-robot"></i> },
-      { name: "AI History", path: "/ai-history", icon: <i className="fa-solid fa-clock-rotate-left"></i> },
+
     ]
   },
   {

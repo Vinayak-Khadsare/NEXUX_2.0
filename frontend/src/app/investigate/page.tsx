@@ -326,9 +326,18 @@ export default function InvestigatePage() {
     loadingSetter(true);
     setter("");
     try {
-      const res = await fetch(getApiUrl(`/api/chat/?query=${encodeURIComponent(query)}&case_id=${activeCaseId}`), {
+      const payload = {
+        query: query,
+        case_id: activeCaseId,
+        history: []
+      };
+      const res = await fetch(getApiUrl(`/api/chat/`), {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { 
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}` 
+        },
+        body: JSON.stringify(payload)
       });
       if (res.ok) {
         const data = await res.json();

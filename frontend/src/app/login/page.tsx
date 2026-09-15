@@ -5,9 +5,7 @@ import Link from "next/link";
 
 export default function Login() {
   const [activeTab, setActiveTab] = useState<"INVESTIGATOR" | "ADMIN">("INVESTIGATOR");
-  const [mode, setMode] = useState<"LOGIN" | "REGISTER" | "MFA">("LOGIN");
-  const [mfaCode, setMfaCode] = useState("");
-  const [tempToken, setTempToken] = useState("");
+  const [mode, setMode] = useState<"LOGIN" | "REGISTER">("LOGIN");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   
@@ -83,8 +81,8 @@ export default function Login() {
           console.error("Failed to parse JWT", e);
         }
 
-        setTempToken(data.access_token);
-        setMode("MFA");
+        localStorage.setItem("token", data.access_token);
+        router.push("/dashboard");
       } else {
         const text = await res.text();
         try {
@@ -151,17 +149,6 @@ export default function Login() {
     }
   };
 
-  const handleMfaSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (mfaCode.length < 6) {
-      setMessage({ text: "Please enter a valid 6-digit MFA code.", isError: true });
-      return;
-    }
-    
-    // Accept any 6-digit code for the mock
-    localStorage.setItem("token", tempToken);
-    router.push("/dashboard");
-  };
 
   return (
     <div className="min-h-screen bg-[var(--app-background)] dark:text-slate-200 text-[var(--text-primary)] flex flex-col items-center justify-center p-6 relative overflow-y-auto font-sans">
@@ -213,8 +200,8 @@ export default function Login() {
           
           <h2 className="text-lg font-semibold dark:text-slate-100 text-[var(--text-primary)] mb-2 text-center">
             {activeTab === "ADMIN" 
-              ? (mode === "MFA" ? "Administrator Authentication" : "Administrator Login")
-              : (mode === "LOGIN" ? "Investigator Login" : mode === "MFA" ? "Multi-Factor Authentication" : "Investigator Registration")}
+              ? "Administrator Login"
+              : (mode === "LOGIN" ? "Investigator Login" : "Investigator Registration")}
           </h2>
           
           <div className="flex justify-center gap-4 mb-6 text-[10px] font-bold uppercase tracking-wider">
@@ -247,24 +234,8 @@ export default function Login() {
             </div>
           )}
 
-          <form onSubmit={mode === "MFA" ? handleMfaSubmit : handleAuth} className="flex flex-col gap-5">
-            {mode === "MFA" ? (
-              <div className="flex flex-col gap-4 text-center items-center py-4">
-                <i className="fa-solid fa-fingerprint text-5xl text-[var(--accent-primary)] mb-2 animate-pulse"></i>
-                <p className="text-sm dark:text-slate-300 text-[var(--text-secondary)]">Enter the 6-digit verification code from your authenticator app.</p>
-                <div className="relative w-48 mt-4">
-                  <input 
-                    type="text" 
-                    maxLength={6}
-                    value={mfaCode} 
-                    onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, ''))}
-                    className="w-full p-3.5 rounded-lg bg-[var(--app-background)] border border-[var(--border)] focus:outline-none focus:border-blue-500 text-2xl text-center dark:text-slate-200 text-[var(--text-primary)] tracking-widest font-mono" 
-                    placeholder="000000" 
-                    required 
-                  />
-                </div>
-              </div>
-            ) : mode === "REGISTER" && activeTab === "INVESTIGATOR" ? (
+          <form onSubmit={handleAuth} className="flex flex-col gap-5">
+            {mode === "REGISTER" && activeTab === "INVESTIGATOR" ? (
               <div className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Personal Information */}
@@ -458,7 +429,7 @@ export default function Login() {
               ) : (
                 <>
                   <i className="fa-solid fa-right-to-bracket"></i>
-                  {mode === "LOGIN" ? "Secure Login" : mode === "MFA" ? "Verify Identity" : "Request Authorization"}
+                  {mode === "LOGIN" ? "Secure Login" : "Request Authorization"}
                 </>
               )}
             </button>

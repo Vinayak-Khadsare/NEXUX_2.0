@@ -37,9 +37,18 @@ export default function AiInvestigatorPage() {
 
     const token = localStorage.getItem("token");
     try {
-      const res = await fetch(getApiUrl(`/api/chat/?query=${encodeURIComponent(text)}&case_id=${activeCaseId}`), {
+      const payload = {
+        query: text,
+        case_id: activeCaseId,
+        history: messages.map(m => ({ sender: m.sender, text: m.text }))
+      };
+      const res = await fetch(getApiUrl(`/api/chat/`), {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { 
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}` 
+        },
+        body: JSON.stringify(payload)
       });
 
       if (res.ok) {
