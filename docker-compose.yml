@@ -32,12 +32,8 @@ services:
       - NEXUS_LOCAL_AI_MODEL=${NEXUS_LOCAL_AI_MODEL:-qwen2.5:7b}
       - NEXUS_LOCAL_AI_TIMEOUT=${NEXUS_LOCAL_AI_TIMEOUT:-300}
       - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
-      - SMTP_HOST=${SMTP_HOST:-}
-      - SMTP_PORT=${SMTP_PORT:-587}
-      - SMTP_USERNAME=${SMTP_USERNAME:-}
-      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
-      - SMTP_FROM_EMAIL=${SMTP_FROM_EMAIL:-}
-      - SMTP_FROM_NAME=${SMTP_FROM_NAME:-NEXUS}
+      - EMAIL_SERVICE_URL=${EMAIL_SERVICE_URL:-http://email-service:3001}
+      - EMAIL_SERVICE_API_KEY=${EMAIL_SERVICE_API_KEY:-}
     depends_on:
       mongodb:
         condition: service_healthy
@@ -120,6 +116,29 @@ services:
       test: ["CMD", "wget", "-qO-", "http://localhost:3000"]
       interval: 15s
       timeout: 30s
+      retries: 5
+
+  email-service:
+    build:
+      context: ./email-service
+      dockerfile: Dockerfile
+    container_name: nexus_email_service
+    restart: unless-stopped
+    environment:
+      - EMAIL_SERVICE_API_KEY=${EMAIL_SERVICE_API_KEY:-}
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USERNAME=${SMTP_USERNAME:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - SMTP_FROM_EMAIL=${SMTP_FROM_EMAIL:-}
+      - SMTP_FROM_NAME=${SMTP_FROM_NAME:-NEXUS}
+      - SMTP_SECURE=${SMTP_SECURE:-}
+    networks:
+      - nexus_network
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3001/health"]
+      interval: 15s
+      timeout: 10s
       retries: 5
 
 volumes:

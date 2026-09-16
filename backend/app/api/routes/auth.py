@@ -134,7 +134,7 @@ async def remove_avatar(current_user=Depends(get_current_user), db=Depends(get_d
 import secrets
 import hashlib
 from datetime import datetime, timedelta
-from app.utils.email import send_reset_otp_email
+from app.utils.email_service_client import send_reset_otp_via_service
 from app.schemas.auth import ForgotPasswordRequest, VerifyOTPRequest, ResendOTPRequest, ResetPasswordRequest
 
 def generate_secure_otp():
@@ -179,9 +179,14 @@ async def forgot_password(req: ForgotPasswordRequest, db=Depends(get_database)):
     })
     
     try:
-        send_reset_otp_email(req.email, otp)
+        success = await send_reset_otp_via_service(req.email, otp)
+        if not success:
+            raise HTTPException(status_code=500, detail="Email delivery failed")
+    except HTTPException:
+        raise
     except Exception as e:
         logging.error("Failed to send reset OTP email.")
+        raise HTTPException(status_code=500, detail="Email delivery failed")
     return generic_msg
 
 @router.post("/resend-reset-otp")
@@ -216,9 +221,14 @@ async def resend_reset_otp(req: ResendOTPRequest, db=Depends(get_database)):
     })
     
     try:
-        send_reset_otp_email(req.email, otp)
+        success = await send_reset_otp_via_service(req.email, otp)
+        if not success:
+            raise HTTPException(status_code=500, detail="Email delivery failed")
+    except HTTPException:
+        raise
     except Exception as e:
         logging.error("Failed to send reset OTP email.")
+        raise HTTPException(status_code=500, detail="Email delivery failed")
     return generic_msg
 
 @router.post("/verify-reset-otp")
