@@ -44,7 +44,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         <div className="print:hidden z-20 relative"><TopBar /></div>
 
         {/* Layout content wrapper */}
-        <div className="flex-1 overflow-y-auto p-8 z-10 relative">
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-8 z-10 relative">
           {children}
         </div>
 

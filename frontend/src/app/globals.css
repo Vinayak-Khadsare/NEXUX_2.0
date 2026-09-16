@@ -71,19 +71,19 @@ body {
   padding: 0;
 }
 
-/* Scrollbar styling for a professional look */
-::-webkit-scrollbar {
+/* Scrollbar styling for a professional look (opt-in class) */
+.custom-scrollbar::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
-::-webkit-scrollbar-track {
+.custom-scrollbar::-webkit-scrollbar-track {
   background: var(--app-background);
 }
-::-webkit-scrollbar-thumb {
+.custom-scrollbar::-webkit-scrollbar-thumb {
   background: var(--border-secondary);
   border-radius: 4px;
 }
-::-webkit-scrollbar-thumb:hover {
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: var(--accent-primary);
 }
 

@@ -88,7 +88,7 @@ export default function CommandPalette() {
           </span>
         </div>
 
-        <div className="max-h-96 overflow-y-auto py-2">
+        <div className="max-h-96 overflow-y-auto custom-scrollbar py-2">
           {filteredGroups.length === 0 ? (
             <div className="px-4 py-8 text-center text-sm text-[var(--text-secondary)]">
               No results found for "{query}".

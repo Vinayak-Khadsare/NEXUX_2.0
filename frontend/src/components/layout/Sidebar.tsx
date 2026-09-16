@@ -85,8 +85,10 @@ export default function Sidebar() {
         onClick={() => setCollapsed(!collapsed)}
         className="absolute top-3.5 -right-3.5 h-7 w-7 rounded-full border border-[var(--border-secondary)] bg-[var(--surface-primary)] flex items-center justify-center text-[var(--accent-primary)] hover:text-[var(--accent-secondary)] hover:border-[var(--accent-primary)] hover:bg-[var(--surface-hover)] text-xs cursor-pointer shadow-xl transition-all active:scale-95 z-50"
         title={collapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+        aria-label={collapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+        aria-expanded={!collapsed}
       >
-        <i className={`fa-solid ${collapsed ? "fa-chevron-right" : "fa-chevron-left"} text-[10px]`}></i>
+        <i className={`fa-solid ${collapsed ? "fa-chevron-right" : "fa-chevron-left"} text-[10px]`} aria-hidden="true"></i>
       </button>
 
       <div className="p-6 border-b border-[var(--border-primary)] flex items-center gap-3 overflow-hidden">
@@ -125,7 +127,7 @@ export default function Sidebar() {
         )}
       </div>
 
-      <nav className="flex-1 overflow-y-auto p-4 space-y-6 scrollbar-thin">
+      <nav className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-6">
         {navGroups.map((group, idx) => {
           if (group.title === "System" && userRole !== "ADMIN") return null;
           return (

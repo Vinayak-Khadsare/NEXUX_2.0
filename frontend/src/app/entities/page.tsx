@@ -70,10 +70,12 @@ export default function EntitiesPage() {
       return;
     }
 
-    let intervalId: NodeJS.Timeout;
+    let intervalId: NodeJS.Timeout | null = null;
     let wasProcessing = false;
+    let isMounted = true;
     
     const checkProcessingStatus = async () => {
+      if (!isMounted) return;
       if (pollingRef.current) return;
       pollingRef.current = true;
       
@@ -90,6 +92,8 @@ export default function EntitiesPage() {
         
         if (res.ok) {
           const latestEvidenceList = await res.json();
+          if (!isMounted) return;
+          
           const isProc = latestEvidenceList.some((e: any) => e.processing_status === "PROCESSING");
           const hasFailed = latestEvidenceList.some((e: any) => e.processing_status === "FAILED");
           
@@ -98,24 +102,34 @@ export default function EntitiesPage() {
           
           if (isProc) {
             wasProcessing = true;
-          } else if (!isProc && wasProcessing) {
-            wasProcessing = false;
-            fetchEntities();
+          } else {
+            if (wasProcessing) {
+              wasProcessing = false;
+              fetchEntities();
+            }
+            if (intervalId) {
+              clearInterval(intervalId);
+              intervalId = null;
+            }
           }
         }
       } catch (err) {
         console.error("Failed to check evidence processing status:", err);
       } finally {
-        pollingRef.current = false;
+        if (isMounted) {
+          pollingRef.current = false;
+        }
       }
     };
 
-    // Every 2 seconds for realtime updates
     intervalId = setInterval(checkProcessingStatus, 2000);
     checkProcessingStatus();
 
     return () => {
-      clearInterval(intervalId);
+      isMounted = false;
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
     };
   }, [activeCaseId, fetchEntities]);
 
@@ -357,7 +371,7 @@ export default function EntitiesPage() {
 
       {/* Slide-out Entity Profile Side Panel */}
       {selectedEntity && (
-        <aside className="w-96 border border-white/5 bg-zinc-900/40 p-6 rounded-2xl flex flex-col gap-6 backdrop-blur-md overflow-y-auto max-h-full shrink-0 shadow-2xl relative animate-fade-in">
+        <aside className="w-full md:w-96 border border-white/5 bg-zinc-900/40 p-6 rounded-2xl flex flex-col gap-6 backdrop-blur-md overflow-y-auto max-h-full shrink-0 shadow-2xl relative animate-fade-in absolute md:static inset-y-0 right-0 z-50">
           {/* Close button */}
           <button 
             onClick={() => setSelectedEntity(null)}

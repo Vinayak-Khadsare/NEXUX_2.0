@@ -35,6 +35,16 @@ export default function GlobalChatbot() {
     }
   }, [messages, isOpen, isMinimized]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        setIsOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen]);
+
   // Sync case context and load entities
   useEffect(() => {
     // Clear conversation history to prevent contamination when case switches
@@ -186,7 +196,7 @@ export default function GlobalChatbot() {
 
       {/* Full Chat Box Panel */}
       {isOpen && !isMinimized && (
-        <div className="w-[420px] h-[600px] rounded-2xl border border-white/10 bg-zinc-950/95 backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.6)] flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-200">
+        <div className="w-[90vw] sm:w-[420px] h-[75vh] sm:h-[600px] rounded-2xl border border-white/10 bg-zinc-950/95 backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.6)] flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-200">
           
           {/* Header Panel */}
           <header className="px-5 py-4 border-b border-white/5 bg-gradient-to-r from-zinc-900/80 to-zinc-950/80 flex justify-between items-center shrink-0 shadow-sm relative">
@@ -368,7 +378,7 @@ export default function GlobalChatbot() {
                   }
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
-                  className="w-full pl-9 pr-4 py-3 rounded-xl bg-zinc-900 border border-white/10 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50 placeholder-zinc-600 text-white transition-all shadow-inner"
+                  className="w-full pl-9 pr-4 py-3 rounded-xl bg-[var(--surface-secondary)] border border-[var(--border-secondary)] text-sm focus:outline-none focus:border-[var(--accent-primary)] focus:ring-2 focus:ring-[var(--accent-primary)]/30 placeholder-zinc-500 text-[var(--text-primary)] transition-all shadow-inner"
                   disabled={sending || !activeCaseId}
                   required
                 />
