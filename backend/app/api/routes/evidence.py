@@ -27,81 +27,97 @@ async def process_evidence_text_background(db, file_path: str, filename: str, ca
         structured_text_preview = ""
         entities_created = 0
         relationships_created = 0
+        timeline_events_created = 0
         
+        def norm_col(c: str) -> str:
+            s = str(c).strip().lower().replace(" ", "_").replace("/", "_").replace("-", "_")
+            while "__" in s:
+                s = s.replace("__", "_")
+            return s.strip("_")
+
+        def parse_risk_score(val) -> float:
+            if val is None:
+                return 0.0
+            s = str(val).strip().lower()
+            if s in ["critical", "severe"]:
+                return 0.95
+            elif s in ["high", "elevated"]:
+                return 0.8
+            elif s in ["medium", "moderate"]:
+                return 0.5
+            elif s in ["low", "minimal"]:
+                return 0.2
+            try:
+                f = float(s)
+                if f > 1.0 and f <= 10.0:
+                    return f / 10.0
+                elif f > 10.0 and f <= 100.0:
+                    return f / 100.0
+                return max(0.0, min(1.0, f))
+            except (ValueError, TypeError):
+                return 0.0
+
         # 1. Attempt structured schema detection
         if ext in [".csv", ".json"]:
             try:
                 import pandas as pd
                 if ext == ".csv":
-                    df = pd.read_csv(file_path)
+                    try:
+                        df = pd.read_csv(file_path, encoding="utf-8")
+                    except UnicodeDecodeError:
+                        df = pd.read_csv(file_path, encoding="latin-1")
                 else:
                     df = pd.read_json(file_path)
                 
                 parsed_data = df.to_dict(orient="records")
-                if parsed_data and isinstance(parsed_data, list):
-                    columns = set(parsed_data[0].keys())
+                if parsed_data and isinstance(parsed_data, list) and len(parsed_data) > 0:
+                    raw_columns = list(parsed_data[0].keys())
+                    col_map = {norm_col(c): c for c in raw_columns}
                     
-                    is_entity_schema = {"entity_id", "name", "type"}.issubset(columns)
-                    is_rel_schema_ids = {"source_id", "target_id", "relationship_type"}.issubset(columns)
-                    is_rel_schema_names = {"source", "target", "type"}.issubset(columns)
-                    is_rel_schema = is_rel_schema_ids or is_rel_schema_names
+                    # Fuzzy / dynamic schema classification
+                    src_key = next((col_map[k] for k in ["source", "source_id", "from", "src", "origin", "source_entity", "source_ref"] if k in col_map), None)
+                    tgt_key = next((col_map[k] for k in ["target", "target_id", "to", "tgt", "destination", "target_entity", "target_ref"] if k in col_map), None)
+                    rel_type_key = next((col_map[k] for k in ["relationship", "relationship_type", "type", "relation", "link_type", "predicate", "connection"] if k in col_map), None)
                     
-                    if is_entity_schema:
+                    date_key = next((col_map[k] for k in ["date", "time", "timestamp", "datetime", "date_time", "event_time", "date_occurred", "time_stamp"] if k in col_map), None)
+                    event_key = next((col_map[k] for k in ["event", "activity", "incident", "description", "action", "message", "event_description", "summary", "log"] if k in col_map), None)
+
+                    id_key = next((col_map[k] for k in ["entity_id", "id", "identifier", "entity", "code", "node_id"] if k in col_map), None)
+                    name_key = next((col_map[k] for k in ["name", "name_identifier", "entity_name", "title", "label", "full_name", "subject"] if k in col_map), None)
+                    type_key = next((col_map[k] for k in ["type", "category", "classification", "entity_type", "kind", "role"] if k in col_map), None)
+                    risk_key = next((col_map[k] for k in ["risk", "risk_score", "threat_score", "threat_level", "risk_level", "priority"] if k in col_map), None)
+                    desc_key = next((col_map[k] for k in ["description", "role_description", "desc", "role", "summary", "notes", "details", "involvement", "activity", "bio", "about", "context", "remarks"] if k in col_map), None)
+
+                    is_rel_schema = bool(src_key and tgt_key)
+                    is_timeline_schema = bool(not is_rel_schema and date_key and event_key)
+                    is_entity_schema = bool(not is_rel_schema and not is_timeline_schema and (
+                        (name_key and type_key) or
+                        (id_key and type_key) or
+                        (id_key and name_key) or
+                        ("entit" in filename.lower())
+                    ))
+
+                    from app.services.relationship_resolver import find_entity, infer_type_from_id
+
+                    if is_rel_schema:
                         is_structured = True
-                        for record in parsed_data:
-                            try:
-                                val_name = record.get("name")
-                                if not val_name: continue
-                                val_type = str(record.get("type", "PERSON")).upper()
-                                properties = {k: v for k, v in record.items() if k not in ["name", "type", "case_id"]}
-                                ent_doc = {
-                                    "case_id": case_id, "type": val_type, "name": str(val_name), "properties": properties,
-                                    "risk_score": float(record.get("risk_score", 0.0)), "created_by": current_user_email,
-                                    "created_at": datetime.utcnow(), "updated_at": datetime.utcnow(),
-                                    "source": "STRUCTURED_IMPORT"
-                                }
-                                # Canonical deduplication
-                                processed_ent = await process_entity_data(db, ent_doc, case_id, mode="APPLY")
-                                norm_name = processed_ent.get("normalizedName") or str(val_name).lower().strip()
-                                existing = await db["entities"].find_one({"$or": [{"case_id": case_id}, {"caseId": case_id}], "normalizedName": norm_name})
-                                if not existing:
-                                    await db["entities"].insert_one(processed_ent)
-                                    entities_created += 1
-                            except Exception as row_e:
-                                print(f"Skipping invalid entity row: {row_e}")
-                                continue
-                                
-                    elif is_rel_schema:
-                        is_structured = True
-                        src_key = "source_id" if is_rel_schema_ids else "source"
-                        tgt_key = "target_id" if is_rel_schema_ids else "target"
-                        type_key = "relationship_type" if is_rel_schema_ids else "type"
-                        
+                        rel_col = rel_type_key if rel_type_key else "type"
                         for record in parsed_data:
                             try:
                                 src_val = record.get(src_key)
                                 tgt_val = record.get(tgt_key)
-                                if not src_val or not tgt_val: continue
-                                
+                                if not src_val or not tgt_val or str(src_val).lower() == "nan" or str(tgt_val).lower() == "nan":
+                                    continue
                                 src_val = str(src_val).strip()
                                 tgt_val = str(tgt_val).strip()
-                                
-                                src_ent = None
-                                tgt_ent = None
-                                
-                                if is_rel_schema_ids:
-                                    # Resolve source and target by ID only
-                                    src_ent = await db["entities"].find_one({"$or": [{"case_id": case_id}, {"caseId": case_id}], "properties.entity_id": src_val})
-                                    tgt_ent = await db["entities"].find_one({"$or": [{"case_id": case_id}, {"caseId": case_id}], "properties.entity_id": tgt_val})
-                                else:
-                                    # Resolve source and target by normalizedName only
-                                    src_ent = await db["entities"].find_one({"$or": [{"case_id": case_id}, {"caseId": case_id}], "normalizedName": src_val.lower()})
-                                    tgt_ent = await db["entities"].find_one({"$or": [{"case_id": case_id}, {"caseId": case_id}], "normalizedName": tgt_val.lower()})
-                                    
+
+                                rel_type = str(record.get(rel_col, "CONNECTED_TO")).upper().strip()
+                                properties = {k: v for k, v in record.items() if k not in [src_key, tgt_key, rel_col, "case_id"] and str(v).lower() != "nan"}
+
+                                src_ent = await find_entity(db, case_id, src_val)
+                                tgt_ent = await find_entity(db, case_id, tgt_val)
+
                                 if src_ent and tgt_ent and str(src_ent["_id"]) != str(tgt_ent["_id"]):
-                                    rel_type = str(record.get(type_key, "CONNECTED_TO")).upper()
-                                    properties = {k: v for k, v in record.items() if k not in [src_key, tgt_key, type_key, "case_id"]}
-                                    
                                     existing_rel = await db["relationships"].find_one({
                                         "$or": [{"case_id": case_id}, {"caseId": case_id}],
                                         "source_entity_id": str(src_ent["_id"]),
@@ -110,18 +126,159 @@ async def process_evidence_text_background(db, file_path: str, filename: str, ca
                                     })
                                     if not existing_rel:
                                         rel_doc = {
-                                            "case_id": case_id, "caseId": case_id, "source_entity_id": str(src_ent["_id"]),
-                                            "target_entity_id": str(tgt_ent["_id"]), "type": rel_type,
-                                            "properties": properties, "evidence_ids": [evidence_id],
-                                            "source": "STRUCTURED_IMPORT", "created_by": current_user_email,
+                                            "case_id": case_id, "caseId": case_id,
+                                            "source_entity_id": str(src_ent["_id"]),
+                                            "target_entity_id": str(tgt_ent["_id"]),
+                                            "type": rel_type, "properties": properties,
+                                            "evidence_ids": [evidence_id],
+                                            "source": "STRUCTURED_IMPORT",
+                                            "created_by": current_user_email,
                                             "created_at": datetime.utcnow(), "updated_at": datetime.utcnow()
                                         }
                                         await db["relationships"].insert_one(rel_doc)
                                         relationships_created += 1
+                                else:
+                                    pending_doc = {
+                                        "case_id": case_id, "caseId": case_id,
+                                        "source_ref": src_val, "target_ref": tgt_val,
+                                        "type": rel_type, "properties": properties,
+                                        "evidence_id": evidence_id, "created_by": current_user_email,
+                                        "status": "PENDING", "created_at": datetime.utcnow()
+                                    }
+                                    await db["pending_relationships"].insert_one(pending_doc)
                             except Exception as row_e:
                                 print(f"Skipping invalid relationship row: {row_e}")
                                 continue
-                                    
+
+                    elif is_timeline_schema:
+                        is_structured = True
+                        time_key = next((col_map[k] for k in ["time", "event_time", "time_stamp"] if k in col_map and col_map[k] != date_key), None)
+                        tl_type_key = next((col_map[k] for k in ["type", "category", "event_type"] if k in col_map), None)
+                        
+                        for record in parsed_data:
+                            try:
+                                date_val = record.get(date_key)
+                                if not date_val or str(date_val).lower() == "nan":
+                                    continue
+                                date_str = str(date_val).strip()
+
+                                if time_key and record.get(time_key) and str(record.get(time_key)).lower() != "nan":
+                                    timestamp_str = f"{date_str} {str(record.get(time_key)).strip()}".strip()
+                                else:
+                                    timestamp_str = date_str
+
+                                event_val = record.get(event_key, "Investigation Event")
+                                event_title = str(event_val).strip() if event_val and str(event_val).lower() != "nan" else "Event"
+                                event_type = str(record.get(tl_type_key, "EVENT")).upper() if tl_type_key and record.get(tl_type_key) else "EVENT"
+                                properties = {k: v for k, v in record.items() if k not in [date_key, time_key, event_key, tl_type_key, "case_id"] and str(v).lower() != "nan"}
+
+                                existing_tl = await db["timeline"].find_one({
+                                    "$or": [{"case_id": case_id}, {"caseId": case_id}],
+                                    "timestamp": timestamp_str,
+                                    "title": event_title
+                                })
+                                if not existing_tl:
+                                    tl_doc = {
+                                        "case_id": case_id, "caseId": case_id,
+                                        "timestamp": timestamp_str,
+                                        "title": event_title,
+                                        "description": event_title,
+                                        "message": event_title,
+                                        "type": event_type,
+                                        "category": "TIMELINE",
+                                        "properties": properties,
+                                        "evidence_ids": [evidence_id],
+                                        "source": "STRUCTURED_IMPORT",
+                                        "created_by": current_user_email,
+                                        "created_at": datetime.utcnow()
+                                    }
+                                    await db["timeline"].insert_one(tl_doc)
+                                    timeline_events_created += 1
+                            except Exception as row_e:
+                                print(f"Skipping invalid timeline row: {row_e}")
+                                continue
+
+                    elif is_entity_schema:
+                        is_structured = True
+                        for record in parsed_data:
+                            try:
+                                val_name = record.get(name_key) if name_key else record.get(id_key)
+                                if not val_name or str(val_name).lower() == "nan":
+                                    continue
+                                val_name = str(val_name).strip()
+
+                                val_id = str(record.get(id_key)).strip() if id_key and record.get(id_key) and str(record.get(id_key)).lower() != "nan" else None
+
+                                val_type = "PERSON"
+                                if type_key and record.get(type_key) and str(record.get(type_key)).lower() != "nan":
+                                    val_type = str(record.get(type_key)).strip().upper()
+                                elif val_id:
+                                    inferred = infer_type_from_id(val_id)
+                                    if inferred:
+                                        val_type = inferred
+
+                                risk_score = parse_risk_score(record.get(risk_key)) if risk_key else 0.0
+
+                                properties = {k: v for k, v in record.items() if k not in [name_key, type_key, "case_id"] and str(v).lower() != "nan"}
+                                if val_id:
+                                    properties["entity_id"] = val_id
+                                    properties["identifier"] = val_id
+
+                                val_desc = ""
+                                if desc_key and record.get(desc_key) and str(record.get(desc_key)).lower() != "nan":
+                                    val_desc = str(record.get(desc_key)).strip()
+                                elif record.get("description") and str(record.get("description")).lower() != "nan":
+                                    val_desc = str(record.get("description")).strip()
+                                elif record.get("role") and str(record.get("role")).lower() != "nan":
+                                    val_desc = str(record.get("role")).strip()
+
+                                if val_desc:
+                                    properties["description"] = val_desc
+
+                                ent_doc = {
+                                    "case_id": case_id, "caseId": case_id,
+                                    "type": val_type, "name": val_name,
+                                    "description": val_desc,
+                                    "properties": properties,
+                                    "risk_score": risk_score,
+                                    "created_by": current_user_email,
+                                    "created_at": datetime.utcnow(), "updated_at": datetime.utcnow(),
+                                    "source": "STRUCTURED_IMPORT"
+                                }
+                                processed_ent = await process_entity_data(db, ent_doc, case_id, mode="APPLY")
+                                norm_name = processed_ent.get("normalizedName") or val_name.lower().strip()
+
+                                or_queries = [{"normalizedName": norm_name}]
+                                if val_id:
+                                    or_queries.append({"properties.entity_id": val_id})
+                                    or_queries.append({"entity_id": val_id})
+                                    or_queries.append({"normalizedName": val_id.lower().strip()})
+                                    or_queries.append({"name": {"$regex": f"^{re.escape(val_id)}$", "$options": "i"}})
+
+                                existing = await db["entities"].find_one({
+                                    "$or": [{"case_id": case_id}, {"caseId": case_id}],
+                                    "$or": or_queries
+                                })
+                                if not existing:
+                                    await db["entities"].insert_one(processed_ent)
+                                    entities_created += 1
+                                else:
+                                    from app.services.relationship_resolver import is_code_name
+                                    merged_props = {**existing.get("properties", {}), **properties}
+                                    update_fields = {"properties": merged_props, "updated_at": datetime.utcnow()}
+                                    if is_code_name(existing.get("name", "")) and not is_code_name(val_name):
+                                        update_fields["name"] = val_name
+                                        update_fields["normalizedName"] = val_name.lower().strip()
+                                    if val_desc and not existing.get("description"):
+                                        update_fields["description"] = val_desc
+                                    await db["entities"].update_one(
+                                        {"_id": existing["_id"]},
+                                        {"$set": update_fields}
+                                    )
+                            except Exception as row_e:
+                                print(f"Skipping invalid entity row: {row_e}")
+                                continue
+
                     if is_structured:
                         structured_text_preview = str(parsed_data)[:5000]
             except Exception as schema_e:
@@ -153,30 +310,32 @@ async def process_evidence_text_background(db, file_path: str, filename: str, ca
                         for ent in ai_results.get("entities", []):
                             ent_name = ent.get("name", "").strip()
                             if not ent_name: continue
+                            
+                            # Filter out file names like 01_entities.csv, README.txt, etc.
+                            if re.search(r'\.(csv|tsv|json|txt|docx?|pdf|zip)$', ent_name, re.I):
+                                continue
+
                             ent_type = str(ent.get("type", "PERSON")).upper()
+                            val_ai_desc = ent.get("description", "").strip()
                             
-                            ent_doc = {
-                                "case_id": case_id,
-                                "type": ent_type,
-                                "name": ent_name,
-                                "properties": {"description": ent.get("description", "")},
-                                "risk_score": float(ent.get("risk_score", 0.0)),
-                                "source": "AI_EXTRACTED",
-                                "created_by": current_user_email,
-                                "created_at": datetime.utcnow(),
-                                "updated_at": datetime.utcnow()
-                            }
-                            
-                            # Process through canonical deduplication pipeline
-                            processed_ent = await process_entity_data(db, ent_doc, case_id, mode="APPLY")
-                            norm_name = processed_ent.get("normalizedName") or ent_name.lower().strip()
-                            
-                            existing = await db["entities"].find_one({
-                                "$or": [{"case_id": case_id}, {"caseId": case_id}],
-                                "normalizedName": norm_name
-                            })
+                            # Check if entity already exists in this case by name, ID code, or alias
+                            existing = await find_entity(db, case_id, ent_name, ent_type)
+                            norm_name = ent_name.lower().strip()
                             
                             if not existing:
+                                ent_doc = {
+                                    "case_id": case_id,
+                                    "type": ent_type,
+                                    "name": ent_name,
+                                    "description": val_ai_desc,
+                                    "properties": {"description": val_ai_desc},
+                                    "risk_score": float(ent.get("risk_score", 0.0)),
+                                    "source": "AI_EXTRACTED",
+                                    "created_by": current_user_email,
+                                    "created_at": datetime.utcnow(),
+                                    "updated_at": datetime.utcnow()
+                                }
+                                processed_ent = await process_entity_data(db, ent_doc, case_id, mode="APPLY")
                                 res = await db["entities"].insert_one(processed_ent)
                                 entity_name_to_id[ent_name.lower()] = str(res.inserted_id)
                                 entity_name_to_id[norm_name] = str(res.inserted_id)
@@ -184,10 +343,20 @@ async def process_evidence_text_background(db, file_path: str, filename: str, ca
                             else:
                                 entity_name_to_id[ent_name.lower()] = str(existing["_id"])
                                 entity_name_to_id[norm_name] = str(existing["_id"])
+                                if val_ai_desc and not existing.get("description"):
+                                    await db["entities"].update_one(
+                                        {"_id": existing["_id"]},
+                                        {"$set": {"description": val_ai_desc, "properties.description": val_ai_desc, "updated_at": datetime.utcnow()}}
+                                    )
     
                         for rel in ai_results.get("relationships", []):
-                            raw_source = rel.get("source", "")
-                            raw_target = rel.get("target", "")
+                            raw_source = rel.get("source", "").strip()
+                            raw_target = rel.get("target", "").strip()
+                            if not raw_source or not raw_target:
+                                continue
+                            if re.search(r'\.(csv|tsv|json|txt|docx?|pdf|zip)$', raw_source, re.I) or re.search(r'\.(csv|tsv|json|txt|docx?|pdf|zip)$', raw_target, re.I):
+                                continue
+
                             source_name = re.sub(r'\s+', ' ', raw_source).strip().lower()
                             target_name = re.sub(r'\s+', ' ', raw_target).strip().lower()
                             
@@ -195,11 +364,11 @@ async def process_evidence_text_background(db, file_path: str, filename: str, ca
                             target_id = entity_name_to_id.get(target_name)
                             
                             if not source_id:
-                                s_doc = await db["entities"].find_one({"$or": [{"case_id": case_id}, {"caseId": case_id}], "normalizedName": source_name})
+                                s_doc = await find_entity(db, case_id, raw_source)
                                 if s_doc: source_id = str(s_doc["_id"])
                                 
                             if not target_id:
-                                t_doc = await db["entities"].find_one({"$or": [{"case_id": case_id}, {"caseId": case_id}], "normalizedName": target_name})
+                                t_doc = await find_entity(db, case_id, raw_target)
                                 if t_doc: target_id = str(t_doc["_id"])
                             
                             if source_id and target_id and source_id != target_id:
@@ -238,7 +407,17 @@ async def process_evidence_text_background(db, file_path: str, filename: str, ca
                 "extraction_status": status
             }}
         )
-        print(f"[EVIDENCE_BG] Evidence {evidence_id} processed. Entities created: {entities_created}, Relationships created: {relationships_created}")
+        print(f"[EVIDENCE_BG] Evidence {evidence_id} processed. Entities created: {entities_created}, Relationships created: {relationships_created}, Timeline created: {timeline_events_created}")
+        
+        # Automatically resolve any pending relationships or ID references across this case
+        try:
+            from app.services.relationship_resolver import resolve_case_relationships, sync_entity_involvement_descriptions
+            resolved_count = await resolve_case_relationships(db, case_id)
+            if resolved_count > 0:
+                print(f"[EVIDENCE_BG] Automatic resolution linked {resolved_count} relationships for case {case_id}")
+            await sync_entity_involvement_descriptions(db, case_id)
+        except Exception as res_err:
+            print(f"[EVIDENCE_BG] Post-processing relationship resolver warning: {res_err}")
         
     except asyncio.CancelledError:
         print(f"[EVIDENCE_BG] Background extraction cancelled by system/fastapi for {evidence_id}")
@@ -260,6 +439,7 @@ async def process_evidence_text_background(db, file_path: str, filename: str, ca
             }}
         )
 
+@router.post("", response_model=EvidenceOut, include_in_schema=False)
 @router.post("/", response_model=EvidenceOut)
 async def create_evidence(evidence: EvidenceCreate, db=Depends(get_database), current_user=Depends(get_current_user)):
     ev_dict = evidence.dict()
@@ -313,7 +493,9 @@ async def upload_evidence(
     created_ev = await db["evidence"].find_one({"_id": result.inserted_id})
     return created_ev
 
-@router.get("/case/{case_id}", response_model=List[EvidenceOut])
+@router.get("", response_model=List[EvidenceOut])
+@router.get("/", response_model=List[EvidenceOut], include_in_schema=False)
+@router.get("/case/{case_id}", response_model=List[EvidenceOut], include_in_schema=False)
 async def get_case_evidence(
     case_id: str, 
     db=Depends(get_database), 
@@ -321,7 +503,7 @@ async def get_case_evidence(
 ):
     await verify_case_access(case_id, db, current_user)
     cursor = db["evidence"].find({"$or": [{"case_id": case_id}, {"caseId": case_id}]})
-    evidence_list = await cursor.to_list(length=100)
+    evidence_list = await cursor.to_list(length=200)
     return evidence_list
 
 @router.get("/{evidence_id}", response_model=EvidenceOut)

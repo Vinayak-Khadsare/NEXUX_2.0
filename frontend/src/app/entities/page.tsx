@@ -36,7 +36,7 @@ export default function EntitiesPage() {
       setLoading(true);
       
       const [entitiesRes, evidenceRes] = await Promise.all([
-        fetch(getApiUrl(`/api/entities/?case_id=${activeCaseId}`), { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(getApiUrl(`/api/entities?case_id=${activeCaseId}`), { headers: { Authorization: `Bearer ${token}` } }),
         fetch(getApiUrl(`/api/evidence/case/${activeCaseId}`), { headers: { Authorization: `Bearer ${token}` } })
       ]);
       
@@ -143,7 +143,7 @@ export default function EntitiesPage() {
       setLoadingProfile(true);
       const token = localStorage.getItem("token");
       try {
-        const res = await fetch(getApiUrl(`/api/relationships/?case_id=${activeCaseId}`), {
+        const res = await fetch(getApiUrl(`/api/relationships?case_id=${activeCaseId}`), {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (res.ok) {
@@ -195,98 +195,98 @@ export default function EntitiesPage() {
   });
 
   return (
-    <div className="flex h-full w-full bg-zinc-950/20 text-white font-sans relative gap-6">
+    <div className="flex h-full w-full bg-[var(--app-background)] text-[var(--text-primary)] font-sans relative gap-6">
       
       {/* Directory Table Area */}
       <div className="flex-1 flex flex-col gap-6 overflow-hidden">
         {/* Header */}
-        <div className="border-b border-white/5 pb-5">
-          <h1 className="text-2xl font-extrabold tracking-tight">Investigated Entity Directory</h1>
-          <p className="text-sm text-zinc-500 mt-1">
+        <div className="border-b border-[var(--border-primary)] pb-5">
+          <h1 className="text-2xl font-extrabold tracking-tight text-[var(--text-primary)]">Investigated Entity Directory</h1>
+          <p className="text-sm text-[var(--text-secondary)] mt-1">
             Access, index, and triage network nodes across communication channels, locations, and suspect lists.
           </p>
         </div>
 
         {/* Filters control bar */}
-        <div className="flex flex-wrap gap-4 items-center justify-between bg-zinc-900/10 p-4 border border-white/5 rounded-2xl">
+        <div className="flex flex-wrap gap-4 items-center justify-between bg-[var(--surface-primary)] p-4 border border-[var(--border-primary)] rounded-2xl shadow-xs">
           <input 
             type="text" 
             placeholder="Search entities by name or attributes..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="px-4 py-2.5 rounded-xl bg-zinc-950/40 border border-white/10 text-sm focus:outline-none focus:border-blue-500 placeholder-zinc-600 text-white w-80"
+            className="px-4 py-2.5 rounded-xl bg-[var(--surface-secondary)] border border-[var(--border-primary)] text-sm focus:outline-none focus:border-[var(--primary-accent)] placeholder-[var(--text-tertiary)] text-[var(--text-primary)] w-80 transition-all"
           />
           <div className="flex gap-3">
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
-              className="px-3 py-2.5 rounded-xl bg-zinc-950/40 border border-white/10 text-xs text-zinc-400 focus:outline-none focus:border-blue-500"
+              className="px-3 py-2.5 rounded-xl bg-[var(--surface-secondary)] border border-[var(--border-primary)] text-xs text-[var(--text-secondary)] focus:outline-none focus:border-[var(--primary-accent)]"
             >
-              <option className="bg-zinc-900 text-zinc-300" value="ALL">All Categories</option>
-              <option className="bg-zinc-900 text-zinc-300" value="PERSON">Persons</option>
-              <option className="bg-zinc-900 text-zinc-300" value="ORGANIZATION">Organizations</option>
-              <option className="bg-zinc-900 text-zinc-300" value="LOCATION">Locations</option>
-              <option className="bg-zinc-900 text-zinc-300" value="PHONE">Communication (Phones)</option>
-              <option className="bg-zinc-900 text-zinc-300" value="VEHICLE">Vehicles</option>
-              <option className="bg-zinc-900 text-zinc-300" value="ACCOUNT">Financial Accounts</option>
+              <option value="ALL">All Categories</option>
+              <option value="PERSON">Persons</option>
+              <option value="ORGANIZATION">Organizations</option>
+              <option value="LOCATION">Locations</option>
+              <option value="PHONE">Communication (Phones)</option>
+              <option value="VEHICLE">Vehicles</option>
+              <option value="ACCOUNT">Financial Accounts</option>
             </select>
             <select
               value={riskFilter}
               onChange={(e) => setRiskFilter(e.target.value)}
-              className="px-3 py-2.5 rounded-xl bg-zinc-950/40 border border-white/10 text-xs text-zinc-400 focus:outline-none focus:border-blue-500"
+              className="px-3 py-2.5 rounded-xl bg-[var(--surface-secondary)] border border-[var(--border-primary)] text-xs text-[var(--text-secondary)] focus:outline-none focus:border-[var(--primary-accent)]"
             >
-              <option className="bg-zinc-900 text-zinc-300" value="ALL">All Risk Indices</option>
-              <option className="bg-zinc-900 text-zinc-300" value="HIGH">High Risk (&gt;0.7)</option>
-              <option className="bg-zinc-900 text-zinc-300" value="MEDIUM">Medium Risk (0.4-0.7)</option>
-              <option className="bg-zinc-900 text-zinc-300" value="LOW">Low Risk (&lt;0.4)</option>
+              <option value="ALL">All Risk Indices</option>
+              <option value="HIGH">High Risk (&gt;0.7)</option>
+              <option value="MEDIUM">Medium Risk (0.4-0.7)</option>
+              <option value="LOW">Low Risk (&lt;0.4)</option>
             </select>
           </div>
         </div>
 
         {/* Directory Results */}
         {!activeCaseId ? (
-          <div className="p-16 border border-dashed border-white/5 rounded-2xl text-center text-zinc-600">
+          <div className="p-16 border border-dashed border-[var(--border-primary)] rounded-2xl text-center text-[var(--text-secondary)] bg-[var(--surface-primary)]">
             Please select an active Case File from the sidebar to list investigated entities.
           </div>
         ) : loading ? (
           <div className="p-16 flex flex-col items-center justify-center gap-3">
-            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
-            <span className="text-xs text-zinc-500">Retrieving case entity directory...</span>
+            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[var(--primary-accent)]"></div>
+            <span className="text-xs text-[var(--text-secondary)]">Retrieving case entity directory...</span>
           </div>
         ) : isProcessingEvidence && filteredEntities.length === 0 ? (
-          <div className="p-16 border border-white/5 bg-zinc-900/20 rounded-2xl flex flex-col items-center justify-center gap-4 text-center">
-            <i className="fa-solid fa-database text-3xl text-blue-500 animate-pulse"></i>
+          <div className="p-16 border border-[var(--border-primary)] bg-[var(--surface-primary)] rounded-2xl flex flex-col items-center justify-center gap-4 text-center">
+            <i className="fa-solid fa-database text-3xl text-[var(--primary-accent)] animate-pulse"></i>
             <div>
-              <h3 className="text-lg font-bold text-white mb-1">Loading entities</h3>
-              <p className="text-sm text-zinc-400">Processing investigation evidence and extracting entities...</p>
+              <h3 className="text-lg font-bold text-[var(--text-primary)] mb-1">Loading entities</h3>
+              <p className="text-sm text-[var(--text-secondary)]">Processing investigation evidence and extracting entities...</p>
             </div>
-            <p className="text-xs text-zinc-500 max-w-md mt-2">Please wait while NEXUS analyzes the uploaded evidence.</p>
+            <p className="text-xs text-[var(--text-tertiary)] max-w-md mt-2">Please wait while NEXUS analyzes the uploaded evidence.</p>
           </div>
         ) : hasFailedEvidence && filteredEntities.length === 0 ? (
-          <div className="p-16 border border-dashed border-red-500/20 bg-red-500/5 rounded-2xl flex flex-col items-center justify-center gap-4 text-center">
-            <i className="fa-solid fa-triangle-exclamation text-3xl text-red-500"></i>
+          <div className="p-16 border border-dashed border-[var(--danger)]/30 bg-[var(--danger-bg)] rounded-2xl flex flex-col items-center justify-center gap-4 text-center">
+            <i className="fa-solid fa-triangle-exclamation text-3xl text-[var(--danger)]"></i>
             <div>
-              <h3 className="text-lg font-bold text-red-400 mb-1">Entity extraction failed</h3>
-              <p className="text-sm text-red-300/80">Evidence processing could not be completed.</p>
+              <h3 className="text-lg font-bold text-[var(--danger)] mb-1">Entity extraction failed</h3>
+              <p className="text-sm text-[var(--danger)]/80">Evidence processing could not be completed.</p>
             </div>
-            <p className="text-xs text-red-300/60 max-w-md mt-2">Please review the evidence processing status.</p>
+            <p className="text-xs text-[var(--danger)]/60 max-w-md mt-2">Please review the evidence processing status.</p>
           </div>
         ) : filteredEntities.length === 0 ? (
-          <div className="p-16 border border-dashed border-white/5 rounded-2xl text-center text-zinc-600">
+          <div className="p-16 border border-dashed border-[var(--border-primary)] rounded-2xl text-center text-[var(--text-secondary)] bg-[var(--surface-primary)]">
             No entities found matching search filters. Upload evidence files to populate case directory.
           </div>
         ) : (
           <div className="overflow-y-auto pr-1 flex-1 flex flex-col gap-4">
             {isProcessingEvidence && (
-              <div className="flex items-center gap-3 px-4 py-3 bg-blue-500/10 border border-blue-500/20 rounded-xl text-blue-400 text-sm font-medium animate-pulse">
+              <div className="flex items-center gap-3 px-4 py-3 bg-[var(--info-bg)] border border-[var(--info)]/20 rounded-xl text-[var(--info)] text-sm font-medium animate-pulse">
                 <i className="fa-solid fa-database"></i>
                 Analyzing newly uploaded evidence...
               </div>
             )}
-            <div className="overflow-x-auto border border-white/5 rounded-2xl bg-zinc-900/10">
-              <table className="w-full border-collapse text-left text-sm text-zinc-400">
+            <div className="overflow-x-auto border border-[var(--border-primary)] rounded-2xl bg-[var(--surface-primary)] shadow-xs">
+              <table className="w-full border-collapse text-left text-sm text-[var(--text-secondary)]">
                 <thead>
-                  <tr className="border-b border-white/5 text-zinc-500 text-xs font-semibold uppercase tracking-wider bg-zinc-950/20">
+                  <tr className="border-b border-[var(--border-primary)] text-[var(--text-secondary)] text-xs font-semibold uppercase tracking-wider bg-[var(--surface-secondary)]">
                     <th className="py-4 px-6">Entity Profile Name</th>
                     <th className="py-4 px-6">Classification</th>
                     <th className="py-4 px-6 text-center">Threat Risk Index</th>
@@ -294,33 +294,33 @@ export default function EntitiesPage() {
                     <th className="py-4 px-6">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/5">
+                <tbody className="divide-y divide-[var(--border-subtle)]">
                   {filteredEntities.map((ent) => (
                     <tr 
                       key={ent._id} 
-                      className={`hover:bg-white/[0.01] transition-colors cursor-pointer ${
-                        selectedEntity?._id === ent._id ? "bg-blue-600/5 hover:bg-blue-600/5" : ""
+                      className={`hover:bg-[var(--surface-secondary)] transition-colors cursor-pointer ${
+                        selectedEntity?._id === ent._id ? "bg-[var(--bg-selected)] hover:bg-[var(--bg-selected)]" : "bg-[var(--surface-primary)]"
                       }`}
                       onClick={() => setSelectedEntity(ent)}
                     >
-                      <td className="py-4 px-6 font-bold text-white text-base">{ent.name}</td>
+                      <td className="py-4 px-6 font-bold text-[var(--text-primary)] text-sm">{ent.name}</td>
                       <td className="py-4 px-6">
-                        <span className="px-2.5 py-1 text-xs rounded-full bg-zinc-900 border border-white/10 text-zinc-400 font-semibold">
+                        <span className="px-2.5 py-1 text-xs rounded-full bg-[var(--surface-secondary)] border border-[var(--border-primary)] text-[var(--text-secondary)] font-semibold">
                           {ent.type}
                         </span>
                       </td>
                       <td className="py-4 px-6 text-center">
-                        <span className={`px-3 py-1 text-xs font-bold rounded-full border ${
-                          ent.risk_score > 0.7 
-                            ? "bg-red-500/10 border-red-500/20 text-red-400 font-extrabold" 
-                            : ent.risk_score > 0.4 
-                            ? "bg-yellow-500/10 border-yellow-500/20 text-yellow-400"
-                            : "bg-blue-500/10 border-blue-500/20 text-blue-400"
+                        <span className={`px-2.5 py-0.5 text-xs font-bold rounded-full font-mono border ${
+                          ent.risk_score >= 0.7 
+                            ? "bg-[var(--danger-bg)] text-[var(--danger)] border-[var(--danger)]/20" 
+                            : ent.risk_score >= 0.4 
+                            ? "bg-[var(--warning-bg)] text-[var(--warning)] border-[var(--warning)]/20" 
+                            : "bg-[var(--success-bg)] text-[var(--success)] border-[var(--success)]/20"
                         }`}>
                           {(ent.risk_score || 0.0).toFixed(2)}
                         </span>
                       </td>
-                      <td className="py-4 px-6 text-xs max-w-sm truncate text-zinc-500">
+                      <td className="py-4 px-6 text-xs max-w-sm truncate text-[var(--text-secondary)]">
                         {(() => {
                             const props = ent.properties || {};
                             if (typeof props === "object" && props !== null) {
@@ -355,7 +355,7 @@ export default function EntitiesPage() {
                             e.stopPropagation();
                             setSelectedEntity(ent);
                           }}
-                          className="px-3 py-1.5 bg-blue-600/10 hover:bg-blue-600 text-blue-400 hover:text-white border border-blue-500/15 hover:border-transparent text-xs rounded-lg transition-all font-bold active:scale-[0.97]"
+                          className="px-3 py-1.5 bg-[var(--bg-green-light)] hover:bg-[var(--primary-accent)] text-[var(--primary-accent)] hover:text-white border border-[var(--primary-accent)]/20 hover:border-transparent text-xs rounded-lg transition-all font-bold active:scale-[0.97]"
                         >
                           View Profile
                         </button>
@@ -371,35 +371,35 @@ export default function EntitiesPage() {
 
       {/* Slide-out Entity Profile Side Panel */}
       {selectedEntity && (
-        <aside className="w-full md:w-96 border border-white/5 bg-zinc-900/40 p-6 rounded-2xl flex flex-col gap-6 backdrop-blur-md overflow-y-auto max-h-full shrink-0 shadow-2xl relative animate-fade-in absolute md:static inset-y-0 right-0 z-50">
+        <aside className="w-full md:w-96 border border-[var(--border-primary)] bg-[var(--surface-primary)] p-6 rounded-2xl flex flex-col gap-6 overflow-y-auto max-h-full shrink-0 shadow-sm relative animate-fade-in absolute md:static inset-y-0 right-0 z-50">
           {/* Close button */}
           <button 
             onClick={() => setSelectedEntity(null)}
-            className="absolute top-4 right-4 text-zinc-500 hover:text-white font-bold text-xs"
+            className="absolute top-4 right-4 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] font-bold text-xs"
           >
             ✕ Close
           </button>
 
           {/* Profile Header */}
-          <div className="space-y-3 pb-5 border-b border-white/5">
-            <span className="px-2 py-0.5 text-[9px] font-extrabold bg-zinc-950 border border-white/10 text-zinc-400 rounded-full tracking-wider uppercase">
+          <div className="space-y-3 pb-5 border-b border-[var(--border-primary)]">
+            <span className="px-2 py-0.5 text-[9px] font-extrabold bg-[var(--surface-secondary)] border border-[var(--border-primary)] text-[var(--text-secondary)] rounded-full tracking-wider uppercase">
               {selectedEntity.type}
             </span>
-            <h2 className="text-xl font-extrabold text-white">{selectedEntity.name}</h2>
+            <h2 className="text-xl font-extrabold text-[var(--text-primary)]">{selectedEntity.name}</h2>
             
             {/* Risk gauge */}
-            <div className="flex items-center gap-3 bg-zinc-950/40 p-3 rounded-xl border border-white/5">
-              <span className="text-xs text-zinc-500 font-semibold uppercase">Risk Score</span>
-              <div className="flex-1 h-2 rounded-full bg-zinc-800 overflow-hidden">
+            <div className="flex items-center gap-3 bg-[var(--surface-secondary)] p-3 rounded-xl border border-[var(--border-primary)]">
+              <span className="text-xs text-[var(--text-tertiary)] font-semibold uppercase">Risk Score</span>
+              <div className="flex-1 h-2 rounded-full bg-[var(--border-primary)] overflow-hidden">
                 <div 
                   className={`h-full rounded-full ${
-                    selectedEntity.risk_score > 0.7 ? "bg-red-500" : selectedEntity.risk_score > 0.4 ? "bg-yellow-500" : "bg-blue-500"
+                    selectedEntity.risk_score >= 0.7 ? "bg-[var(--danger)]" : selectedEntity.risk_score >= 0.4 ? "bg-[var(--warning)]" : "bg-[var(--primary-accent)]"
                   }`} 
                   style={{ width: `${Math.min((selectedEntity.risk_score || 0.0) * 100, 100)}%` }} 
                 />
               </div>
               <span className={`text-xs font-bold font-mono ${
-                selectedEntity.risk_score > 0.7 ? "text-red-400" : selectedEntity.risk_score > 0.4 ? "text-yellow-400" : "text-blue-400"
+                selectedEntity.risk_score >= 0.7 ? "text-[var(--danger)]" : selectedEntity.risk_score >= 0.4 ? "text-[var(--warning)]" : "text-[var(--primary-accent)]"
               }`}>
                 {(selectedEntity.risk_score || 0.0).toFixed(2)}
               </span>
@@ -408,15 +408,15 @@ export default function EntitiesPage() {
 
           {/* Properties List */}
           <div className="space-y-2">
-            <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Entity Details</h3>
+            <h3 className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">Entity Details</h3>
             {Object.keys(selectedEntity.properties || {}).length === 0 ? (
-              <p className="text-zinc-600 text-xs italic">No attributes recorded.</p>
+              <p className="text-[var(--text-tertiary)] text-xs italic">No attributes recorded.</p>
             ) : (
               <div className="space-y-1.5">
                 {Object.entries(selectedEntity.properties).map(([key, val]) => (
-                  <div key={key} className="flex justify-between items-start text-xs p-2 rounded-lg bg-zinc-950/20 border border-white/5">
-                    <span className="text-zinc-500 font-mono">{key}</span>
-                    <span className="text-zinc-300 font-bold max-w-[180px] text-right break-all">{String(val)}</span>
+                  <div key={key} className="flex justify-between items-start text-xs p-2 rounded-lg bg-[var(--surface-secondary)] border border-[var(--border-primary)]">
+                    <span className="text-[var(--text-secondary)] font-mono">{key}</span>
+                    <span className="text-[var(--text-primary)] font-bold max-w-[180px] text-right break-all">{String(val)}</span>
                   </div>
                 ))}
               </div>
@@ -427,8 +427,8 @@ export default function EntitiesPage() {
           <div className="space-y-4 flex-1 flex flex-col overflow-hidden min-h-[200px]">
             {loadingProfile ? (
               <div className="flex-1 flex flex-col items-center justify-center gap-2">
-                <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-blue-500"></div>
-                <span className="text-[10px] text-zinc-500 font-mono">Loading relationships...</span>
+                <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-[var(--primary-accent)]"></div>
+                <span className="text-[10px] text-[var(--text-tertiary)] font-mono">Loading relationships...</span>
               </div>
             ) : (
               <>
@@ -442,25 +442,25 @@ export default function EntitiesPage() {
                       
                       {/* Direct Network Links (Primary) */}
                       <div className="space-y-3">
-                        <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Direct Network Links ({primaryLinks.length})</h3>
+                        <h3 className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">Direct Network Links ({primaryLinks.length})</h3>
                         {primaryLinks.length === 0 ? (
-                          <p className="text-zinc-600 text-xs italic flex-1 flex items-center justify-center">No primary connections mapped.</p>
+                          <p className="text-[var(--text-tertiary)] text-xs italic flex-1 flex items-center justify-center">No primary connections mapped.</p>
                         ) : (
                           <div className="space-y-2.5">
                             {primaryLinks.map((rel, idx) => (
-                              <div key={`prim-${idx}`} className="p-3.5 rounded-xl bg-zinc-950/60 border border-white/5 text-xs flex flex-col gap-2">
+                              <div key={`prim-${idx}`} className="p-3.5 rounded-xl bg-[var(--surface-secondary)] border border-[var(--border-primary)] text-xs flex flex-col gap-2">
                                 <div className="flex justify-between items-center">
-                                  <span className="font-bold text-zinc-300 truncate max-w-[180px]">{rel.targetName}</span>
-                                  <span className="text-[9px] px-2 py-0.5 rounded-full bg-blue-600/10 text-blue-400 font-semibold">
+                                  <span className="font-bold text-[var(--text-primary)] truncate max-w-[180px]">{rel.targetName}</span>
+                                  <span className="text-[9px] px-2 py-0.5 rounded-full bg-[var(--bg-green-light)] text-[var(--primary-accent)] font-semibold border border-[var(--primary-accent)]/20">
                                     {rel.type}
                                   </span>
                                 </div>
                                 {Object.keys(rel.properties || {}).length > 0 && (
-                                  <div className="text-[10px] text-zinc-500 font-mono border-t border-white/5 pt-2">
+                                  <div className="text-[10px] text-[var(--text-secondary)] font-mono border-t border-[var(--border-primary)] pt-2">
                                     {Object.entries(rel.properties).map(([k, v]) => (
                                       <div key={k} className="flex justify-between">
                                         <span>{k}:</span>
-                                        <span className="text-zinc-400">{String(v)}</span>
+                                        <span className="text-[var(--text-primary)]">{String(v)}</span>
                                       </div>
                                     ))}
                                   </div>
@@ -473,15 +473,15 @@ export default function EntitiesPage() {
 
                       {/* Supporting Information (Secondary) */}
                       <div className="space-y-3">
-                        <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Supporting Information ({secondaryInfo.length})</h3>
+                        <h3 className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">Supporting Information ({secondaryInfo.length})</h3>
                         {secondaryInfo.length === 0 ? (
-                          <p className="text-zinc-600 text-xs italic flex-1 flex items-center justify-center">No supporting info extracted.</p>
+                          <p className="text-[var(--text-tertiary)] text-xs italic flex-1 flex items-center justify-center">No supporting info extracted.</p>
                         ) : (
                           <div className="grid grid-cols-2 gap-2">
                             {secondaryInfo.map((rel, idx) => (
-                              <div key={`sec-${idx}`} className="p-2.5 rounded-lg bg-zinc-900/40 border border-white/5 text-xs flex flex-col justify-center">
-                                <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider mb-1 truncate">{rel.targetType}</span>
-                                <span className="font-mono text-zinc-300 break-all">{rel.targetName}</span>
+                              <div key={`sec-${idx}`} className="p-2.5 rounded-lg bg-[var(--surface-secondary)] border border-[var(--border-primary)] text-xs flex flex-col justify-center">
+                                <span className="text-[9px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider mb-1 truncate">{rel.targetType}</span>
+                                <span className="font-mono text-[var(--text-primary)] break-all">{rel.targetName}</span>
                               </div>
                             ))}
                           </div>

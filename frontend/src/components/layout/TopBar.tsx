@@ -58,12 +58,12 @@ export default function TopBar() {
   const currentCase = cases.find(c => c._id === activeCaseId) || activeCase;
 
   return (
-    <header className="h-14 border-b border-[var(--border-primary)] bg-[var(--surface-primary)] flex items-center justify-between px-4 z-40 relative shadow-md">
+    <header className="h-14 border-b border-[var(--border-primary)] bg-[var(--surface-primary)] flex items-center justify-between px-4 z-40 relative shadow-sm">
       {/* Left: Active Case & System Status */}
       <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2 px-2 py-1 border border-transparent rounded-md hover:bg-[var(--surface-secondary)] hover:border-[var(--border-primary)] transition-all duration-200 cursor-default">
-          <div className="w-2 h-2 rounded-full bg-[var(--success)] animate-pulse" title="System Online"></div>
-          <span className="text-xs font-bold text-[var(--text-secondary)] tracking-wider">NEXUS SECURE</span>
+        <div className="flex items-center gap-2 px-2.5 py-1 rounded-md bg-[var(--surface-secondary)] border border-[var(--border-primary)] transition-all duration-200 cursor-default">
+          <div className="w-2 h-2 rounded-full bg-[var(--success)]" title="System Online"></div>
+          <span className="text-[11px] font-bold text-[var(--text-secondary)] tracking-wider">NEXUS SECURE</span>
         </div>
         <div className="h-4 w-px bg-[var(--border-secondary)]"></div>
         <div className="relative">
@@ -71,11 +71,11 @@ export default function TopBar() {
             onClick={() => setCaseDropdownOpen(!caseDropdownOpen)}
             className="text-sm font-semibold flex items-center gap-2 text-[var(--text-primary)] px-2 py-1 border border-transparent rounded-md hover:bg-[var(--surface-secondary)] hover:border-[var(--border-primary)] transition-all duration-200 cursor-pointer group"
           >
-            <i className="fa-regular fa-folder text-[var(--text-muted)] group-hover:text-[var(--accent-secondary)] transition-colors"></i>
+            <i className="fa-regular fa-folder text-[var(--text-muted)] group-hover:text-[var(--accent-primary)] transition-colors"></i>
             <span className="text-[var(--text-muted)] font-medium">Case</span>
             <span className="text-[var(--border-secondary)] mx-1 select-none">•</span>
-            <span className="font-bold tracking-wide group-hover:text-[var(--accent-secondary)] transition-colors">{currentCase ? currentCase.name : "NO ACTIVE CASE"}</span>
-            <i className={`fa-solid fa-chevron-down text-[10px] ml-1 transition-opacity ${caseDropdownOpen ? 'opacity-100 text-[var(--accent-secondary)]' : 'text-[var(--text-muted)] opacity-0 group-hover:opacity-100'}`}></i>
+            <span className="font-bold tracking-wide group-hover:text-[var(--accent-primary)] transition-colors">{currentCase ? currentCase.name : "NO ACTIVE CASE"}</span>
+            <i className={`fa-solid fa-chevron-down text-[10px] ml-1 transition-opacity ${caseDropdownOpen ? 'opacity-100 text-[var(--accent-primary)]' : 'text-[var(--text-muted)] opacity-0 group-hover:opacity-100'}`}></i>
           </div>
 
           {caseDropdownOpen && (
@@ -90,7 +90,7 @@ export default function TopBar() {
                     setActiveCaseId(c._id);
                     setCaseDropdownOpen(false);
                   }}
-                  className={`w-full text-left px-4 py-2 text-sm transition-colors ${activeCaseId === c._id ? 'bg-[var(--surface-secondary)] text-[var(--accent-secondary)]' : 'text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)] hover:text-[var(--text-primary)]'}`}
+                  className={`w-full text-left px-4 py-2 text-sm transition-colors ${activeCaseId === c._id ? 'bg-[var(--surface-secondary)] text-[var(--accent-primary)] font-bold' : 'text-[var(--text-secondary)] hover:bg-[var(--surface-secondary)] hover:text-[var(--text-primary)]'}`}
                 >
                   <div className="font-medium truncate">{c.name}</div>
                 </button>
@@ -105,13 +105,13 @@ export default function TopBar() {
       {/* Center: Global Search */}
       <div className="flex-1 max-w-md mx-4">
         <button 
-          className="w-full flex items-center justify-between px-3 py-1.5 text-sm bg-[var(--surface-secondary)] border border-[var(--border-primary)] text-[var(--text-secondary)] rounded-md hover:border-[var(--border-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-transparent transition-all duration-200 shadow-inner group"
+          className="w-full flex items-center justify-between px-3 py-1.5 text-sm bg-[var(--surface-secondary)] border border-[var(--border-primary)] text-[var(--text-secondary)] rounded-md hover:border-[var(--border-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-transparent transition-all duration-200 group"
           onClick={() => {
             window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }));
           }}
         >
           <span className="flex items-center gap-2">
-            <i className="fa-solid fa-magnifying-glass group-hover:text-[var(--accent-secondary)] transition-colors"></i> Global Search...
+            <i className="fa-solid fa-magnifying-glass group-hover:text-[var(--accent-primary)] transition-colors"></i> Global Search...
           </span>
           <span className="px-1.5 py-0.5 rounded bg-[var(--surface-primary)] text-[10px] font-mono font-bold border border-[var(--border-primary)] group-hover:border-[var(--border-secondary)] transition-colors">
             Ctrl K
@@ -122,30 +122,30 @@ export default function TopBar() {
       {/* Right: Actions & Profile */}
       <div className="flex items-center gap-3">
         {/* AI Status */}
-        <div className="flex items-center gap-2 px-2 py-1.5 bg-[var(--surface-secondary)] border border-[var(--border-primary)] rounded-md cursor-default text-xs font-medium mr-1 transition-all" title="Local AI Status">
+        <div className="flex items-center gap-2 px-2.5 py-1 bg-[var(--surface-secondary)] border border-[var(--border-primary)] rounded-md cursor-default text-xs font-medium mr-1 transition-all" title="Local AI Status">
           {aiStatus === "READY" && (
             <>
-              <div className="w-2 h-2 rounded-full bg-[var(--success)] shadow-[0_0_5px_var(--success)]"></div>
-              <span className="text-[var(--text-secondary)] tracking-wide">AI Ready</span>
+              <div className="w-2 h-2 rounded-full bg-[var(--success)]"></div>
+              <span className="text-[var(--text-secondary)] tracking-wide font-medium">AI Ready</span>
             </>
           )}
           {aiStatus === "INITIALIZING" && (
             <>
               <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
-              <span className="text-[var(--text-secondary)] tracking-wide">Local AI Initializing</span>
+              <span className="text-[var(--text-secondary)] tracking-wide font-medium">Local AI Initializing</span>
             </>
           )}
           {aiStatus === "UNAVAILABLE" && (
             <>
               <div className="w-2 h-2 rounded-full bg-[var(--danger)]"></div>
-              <span className="text-[var(--text-secondary)] tracking-wide">Local AI Unavailable</span>
+              <span className="text-[var(--text-secondary)] tracking-wide font-medium">Local AI Unavailable</span>
             </>
           )}
         </div>
 
         {/* AI Shortcut */}
         <button 
-          className="px-3 py-1.5 text-xs font-bold bg-[var(--accent-primary)] text-white rounded-md hover:bg-[var(--accent-secondary)] hover:shadow-[0_0_8px_rgba(20,200,235,0.4)] focus:ring-2 focus:ring-[var(--accent-secondary)] focus:ring-offset-1 focus:ring-offset-[var(--surface-primary)] active:scale-95 transition-all duration-200 flex items-center gap-2 border border-[var(--accent-primary)]"
+          className="px-3 py-1.5 text-xs font-bold bg-[var(--accent-primary)] text-white rounded-md hover:bg-[var(--accent-hover)] focus:ring-2 focus:ring-[var(--accent-primary)] focus:ring-offset-1 focus:ring-offset-[var(--surface-primary)] active:scale-95 transition-all duration-200 flex items-center gap-2 border border-transparent shadow-sm"
           title="Ask NEXUS AI"
         >
           <i className="fa-solid fa-robot"></i> AI
@@ -169,7 +169,7 @@ export default function TopBar() {
                   aria-label={`Theme: ${t}`}
                   className={`p-1.5 rounded-md text-sm transition-all duration-200 ${
                     active
-                      ? "bg-[var(--surface-primary)] text-[var(--accent-secondary)] shadow-sm border border-[var(--border-primary)]"
+                      ? "bg-[var(--surface-primary)] text-[var(--accent-primary)] shadow-sm border border-[var(--border-primary)] font-bold"
                       : "text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-hover)] border border-transparent"
                   } active:scale-95`}
                   title={`Switch to ${t} mode`}

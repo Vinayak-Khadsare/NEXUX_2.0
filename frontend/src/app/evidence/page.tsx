@@ -33,7 +33,7 @@ export default function EvidencePage() {
     const token = localStorage.getItem("token");
     try {
       setLoading(true);
-      const res = await fetch(getApiUrl(`/api/evidence/?case_id=${activeCaseId}`), {
+      const res = await fetch(getApiUrl(`/api/evidence?case_id=${activeCaseId}`), {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
@@ -71,7 +71,7 @@ export default function EvidencePage() {
       }
       
       try {
-        const res = await fetch(getApiUrl(`/api/evidence/?case_id=${activeCaseId}`), {
+        const res = await fetch(getApiUrl(`/api/evidence?case_id=${activeCaseId}`), {
           headers: { Authorization: `Bearer ${token}` }
         });
         

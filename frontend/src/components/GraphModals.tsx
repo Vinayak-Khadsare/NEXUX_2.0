@@ -108,13 +108,13 @@ export function EntityModal({
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1">
             <label className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">Entity Name *</label>
-            <input type="text" required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="p-2 rounded-lg bg-[var(--surface-secondary)] border border-[var(--border-primary)] text-sm focus:outline-none focus:border-[var(--primary-accent)] text-white" />
+            <input type="text" required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="p-2 rounded-lg bg-[var(--surface-secondary)] border border-[var(--border-primary)] text-sm focus:outline-none focus:border-[var(--primary-accent)] text-[var(--text-primary)]" />
           </div>
 
           <div className="flex gap-3">
             <div className="flex flex-col gap-1 w-1/2">
               <label className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">Entity Type *</label>
-              <select value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})} className="p-2 rounded-lg bg-[var(--surface-secondary)] border border-[var(--border-primary)] text-sm focus:outline-none focus:border-[var(--primary-accent)] text-white">
+              <select value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})} className="p-2 rounded-lg bg-[var(--surface-secondary)] border border-[var(--border-primary)] text-sm focus:outline-none focus:border-[var(--primary-accent)] text-[var(--text-primary)]">
                 <option value="PERSON">PERSON</option>
                 <option value="ORGANIZATION">ORGANIZATION</option>
                 <option value="LOCATION">LOCATION</option>
@@ -129,23 +129,23 @@ export function EntityModal({
             </div>
             <div className="flex flex-col gap-1 w-1/2">
               <label className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">Risk Level * (0-1)</label>
-              <input type="number" step="0.1" min="0" max="1" required value={formData.risk_score} onChange={e => setFormData({...formData, risk_score: parseFloat(e.target.value)})} className="p-2 rounded-lg bg-[var(--surface-secondary)] border border-[var(--border-primary)] text-sm focus:outline-none focus:border-[var(--primary-accent)] text-white" />
+              <input type="number" step="0.1" min="0" max="1" required value={formData.risk_score} onChange={e => setFormData({...formData, risk_score: parseFloat(e.target.value)})} className="p-2 rounded-lg bg-[var(--surface-secondary)] border border-[var(--border-primary)] text-sm focus:outline-none focus:border-[var(--primary-accent)] text-[var(--text-primary)]" />
             </div>
           </div>
 
           <div className="flex flex-col gap-1">
             <label className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">Description</label>
-            <input type="text" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="p-2 rounded-lg bg-[var(--surface-secondary)] border border-[var(--border-primary)] text-sm focus:outline-none focus:border-[var(--primary-accent)] text-white" />
+            <input type="text" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="p-2 rounded-lg bg-[var(--surface-secondary)] border border-[var(--border-primary)] text-sm focus:outline-none focus:border-[var(--primary-accent)] text-[var(--text-primary)]" />
           </div>
 
           <div className="flex flex-col gap-1">
             <label className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">Notes</label>
-            <textarea value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} className="p-2 rounded-lg bg-[var(--surface-secondary)] border border-[var(--border-primary)] text-sm focus:outline-none focus:border-[var(--primary-accent)] text-white h-20 resize-none"></textarea>
+            <textarea value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} className="p-2 rounded-lg bg-[var(--surface-secondary)] border border-[var(--border-primary)] text-sm focus:outline-none focus:border-[var(--primary-accent)] text-[var(--text-primary)] h-20 resize-none"></textarea>
           </div>
         </div>
 
         <div className="flex justify-end gap-3 mt-4">
-          <button onClick={onClose} disabled={isLoading} className="px-4 py-2 rounded-lg text-xs font-bold text-[var(--text-secondary)] hover:text-white bg-[var(--surface-secondary)] hover:bg-[var(--surface-secondary-hover)] transition-colors disabled:opacity-50">
+          <button onClick={onClose} disabled={isLoading} className="px-4 py-2 rounded-lg text-xs font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-[var(--surface-secondary)] hover:bg-[var(--surface-secondary-hover)] transition-colors disabled:opacity-50">
             Cancel
           </button>
           <button 
@@ -221,7 +221,7 @@ export function RelationshipModal({
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1">
             <label className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">Source Entity *</label>
-            <select disabled={!!relationship} value={formData.source_entity_id} onChange={e => setFormData({...formData, source_entity_id: e.target.value})} className="p-2 rounded-lg bg-[var(--surface-secondary)] border border-[var(--border-primary)] text-sm focus:outline-none focus:border-[var(--primary-accent)] text-white">
+            <select disabled={!!relationship} value={formData.source_entity_id} onChange={e => setFormData({...formData, source_entity_id: e.target.value})} className="p-2 rounded-lg bg-[var(--surface-secondary)] border border-[var(--border-primary)] text-sm focus:outline-none focus:border-[var(--primary-accent)] text-[var(--text-primary)]">
               <option value="">-- Select Source --</option>
               {entities.map(e => <option key={e._id} value={e._id} disabled={e._id === formData.target_entity_id}>{e.name} ({e.type})</option>)}
             </select>
@@ -229,7 +229,7 @@ export function RelationshipModal({
 
           <div className="flex flex-col gap-1">
             <label className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">Target Entity *</label>
-            <select disabled={!!relationship} value={formData.target_entity_id} onChange={e => setFormData({...formData, target_entity_id: e.target.value})} className="p-2 rounded-lg bg-[var(--surface-secondary)] border border-[var(--border-primary)] text-sm focus:outline-none focus:border-[var(--primary-accent)] text-white">
+            <select disabled={!!relationship} value={formData.target_entity_id} onChange={e => setFormData({...formData, target_entity_id: e.target.value})} className="p-2 rounded-lg bg-[var(--surface-secondary)] border border-[var(--border-primary)] text-sm focus:outline-none focus:border-[var(--primary-accent)] text-[var(--text-primary)]">
               <option value="">-- Select Target --</option>
               {entities.map(e => <option key={e._id} value={e._id} disabled={e._id === formData.source_entity_id}>{e.name} ({e.type})</option>)}
             </select>
@@ -238,7 +238,7 @@ export function RelationshipModal({
           <div className="flex gap-3">
             <div className="flex flex-col gap-1 w-1/2">
               <label className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">Relationship Type *</label>
-              <select value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})} className="p-2 rounded-lg bg-[var(--surface-secondary)] border border-[var(--border-primary)] text-sm focus:outline-none focus:border-[var(--primary-accent)] text-white">
+              <select value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})} className="p-2 rounded-lg bg-[var(--surface-secondary)] border border-[var(--border-primary)] text-sm focus:outline-none focus:border-[var(--primary-accent)] text-[var(--text-primary)]">
                 <option value="KNOWS">KNOWS</option>
                 <option value="OWNS">OWNS</option>
                 <option value="WORKS_FOR">WORKS_FOR</option>
@@ -254,23 +254,23 @@ export function RelationshipModal({
             </div>
             <div className="flex flex-col gap-1 w-1/2">
               <label className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">Confidence (0-1)</label>
-              <input type="number" step="0.1" min="0" max="1" value={formData.confidence} onChange={e => setFormData({...formData, confidence: parseFloat(e.target.value)})} className="p-2 rounded-lg bg-[var(--surface-secondary)] border border-[var(--border-primary)] text-sm focus:outline-none focus:border-[var(--primary-accent)] text-white" />
+              <input type="number" step="0.1" min="0" max="1" value={formData.confidence} onChange={e => setFormData({...formData, confidence: parseFloat(e.target.value)})} className="p-2 rounded-lg bg-[var(--surface-secondary)] border border-[var(--border-primary)] text-sm focus:outline-none focus:border-[var(--primary-accent)] text-[var(--text-primary)]" />
             </div>
           </div>
 
           <div className="flex flex-col gap-1">
             <label className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">Description</label>
-            <input type="text" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="p-2 rounded-lg bg-[var(--surface-secondary)] border border-[var(--border-primary)] text-sm focus:outline-none focus:border-[var(--primary-accent)] text-white" />
+            <input type="text" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="p-2 rounded-lg bg-[var(--surface-secondary)] border border-[var(--border-primary)] text-sm focus:outline-none focus:border-[var(--primary-accent)] text-[var(--text-primary)]" />
           </div>
 
           <div className="flex flex-col gap-1">
             <label className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">Notes</label>
-            <textarea value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} className="p-2 rounded-lg bg-[var(--surface-secondary)] border border-[var(--border-primary)] text-sm focus:outline-none focus:border-[var(--primary-accent)] text-white h-20 resize-none"></textarea>
+            <textarea value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} className="p-2 rounded-lg bg-[var(--surface-secondary)] border border-[var(--border-primary)] text-sm focus:outline-none focus:border-[var(--primary-accent)] text-[var(--text-primary)] h-20 resize-none"></textarea>
           </div>
         </div>
 
         <div className="flex justify-end gap-3 mt-4">
-          <button onClick={onClose} disabled={isLoading} className="px-4 py-2 rounded-lg text-xs font-bold text-[var(--text-secondary)] hover:text-white bg-[var(--surface-secondary)] hover:bg-[var(--surface-secondary-hover)] transition-colors disabled:opacity-50">
+          <button onClick={onClose} disabled={isLoading} className="px-4 py-2 rounded-lg text-xs font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-[var(--surface-secondary)] hover:bg-[var(--surface-secondary-hover)] transition-colors disabled:opacity-50">
             Cancel
           </button>
           <button 

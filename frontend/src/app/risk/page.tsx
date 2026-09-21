@@ -27,7 +27,7 @@ export default function RiskDashboard() {
 
       try {
         setLoading(true);
-        const res = await fetch(getApiUrl(`/api/entities/?case_id=${activeCaseId}`), {
+        const res = await fetch(getApiUrl(`/api/entities?case_id=${activeCaseId}`), {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (res.ok) {

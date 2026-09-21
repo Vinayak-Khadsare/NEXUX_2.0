@@ -74,10 +74,10 @@ export default function GraphEditorControls({
           
           <div className="w-px h-6 bg-[var(--border-primary)] mx-1"></div>
 
-          <button disabled={!canUndo} onClick={onUndo} title="Undo Layout Change" className="w-8 h-8 rounded-full bg-[var(--surface-secondary)] text-[var(--text-secondary)] hover:text-white disabled:opacity-30 transition-all shadow border border-[var(--border-primary)]">
+          <button disabled={!canUndo} onClick={onUndo} title="Undo Layout Change" className="w-8 h-8 rounded-full bg-[var(--surface-secondary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-30 transition-all shadow border border-[var(--border-primary)]">
             <i className="fa-solid fa-undo"></i>
           </button>
-          <button disabled={!canRedo} onClick={onRedo} title="Redo Layout Change" className="w-8 h-8 rounded-full bg-[var(--surface-secondary)] text-[var(--text-secondary)] hover:text-white disabled:opacity-30 transition-all shadow border border-[var(--border-primary)]">
+          <button disabled={!canRedo} onClick={onRedo} title="Redo Layout Change" className="w-8 h-8 rounded-full bg-[var(--surface-secondary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-30 transition-all shadow border border-[var(--border-primary)]">
             <i className="fa-solid fa-redo"></i>
           </button>
 

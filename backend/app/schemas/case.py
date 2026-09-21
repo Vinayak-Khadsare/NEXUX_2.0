@@ -18,3 +18,9 @@ class CaseOut(CaseBase):
     created_by: str
     created_at: datetime
     updated_at: datetime
+    ai_narrative: Optional[str] = None
+    narrative_generated_at: Optional[datetime] = None
+
+    class Config:
+        extra = "allow"
+

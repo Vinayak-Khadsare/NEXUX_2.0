@@ -8,6 +8,7 @@ from datetime import datetime
 
 router = APIRouter()
 
+@router.post("", response_model=RelationshipOut, include_in_schema=False)
 @router.post("/", response_model=RelationshipOut)
 async def create_relationship(relationship: RelationshipCreate, db=Depends(get_database), current_user=Depends(get_current_user)):
     # Validate source and target exist and belong to the same case
@@ -30,6 +31,7 @@ async def create_relationship(relationship: RelationshipCreate, db=Depends(get_d
     return created_rel
 
 @router.get("", response_model=List[RelationshipOut])
+@router.get("/", response_model=List[RelationshipOut], include_in_schema=False)
 async def list_relationships(case_id: str, db=Depends(get_database), current_user=Depends(get_current_user)):
     relationships = await db["relationships"].find({"$or": [{"case_id": case_id}, {"caseId": case_id}]}).to_list(5000)
     print(f"[RELATIONSHIPS_API] requested_case_id={case_id} found={len(relationships)}")

@@ -10,6 +10,7 @@ router = APIRouter()
 
 from app.services.data_processing.pipeline import process_entity_data
 
+@router.post("", response_model=EntityOut, include_in_schema=False)
 @router.post("/", response_model=EntityOut)
 async def create_entity(entity: EntityCreate, db=Depends(get_database), current_user=Depends(get_current_user)):
     entity_dict = entity.dict()
@@ -25,15 +26,49 @@ async def create_entity(entity: EntityCreate, db=Depends(get_database), current_
         
     # Process data through the pipeline
     processed_dict = await process_entity_data(db, entity_dict, entity.case_id, mode="APPLY")
+    
+    from app.services.relationship_resolver import find_entity, is_code_name
+    val_name = str(processed_dict.get("name", "")).strip()
+    val_type = processed_dict.get("type", "PERSON")
+    val_id = str(processed_dict.get("properties", {}).get("entity_id") or "").strip()
+    
+    existing = await find_entity(db, entity.case_id, val_name, val_type)
+    if not existing and val_id:
+        existing = await find_entity(db, entity.case_id, val_id, val_type)
+
+    if existing:
+        merged_props = {**existing.get("properties", {}), **processed_dict.get("properties", {})}
+        update_fields = {"properties": merged_props, "updated_at": datetime.utcnow()}
+        if is_code_name(existing.get("name", "")) and not is_code_name(val_name):
+            update_fields["name"] = val_name
+            update_fields["normalizedName"] = val_name.lower().strip()
+        await db["entities"].update_one({"_id": existing["_id"]}, {"$set": update_fields})
+        return await db["entities"].find_one({"_id": existing["_id"]})
         
     result = await db["entities"].insert_one(processed_dict)
     created_entity = await db["entities"].find_one({"_id": result.inserted_id})
     return created_entity
 
 @router.get("", response_model=List[EntityOut])
+@router.get("/", response_model=List[EntityOut], include_in_schema=False)
 async def list_entities(case_id: str, db=Depends(get_database), current_user=Depends(get_current_user)):
+    # Merge any latent duplicate entities so 3D map and entity lists are always 100% clean
+    try:
+        from app.services.relationship_resolver import merge_case_duplicate_entities
+        await merge_case_duplicate_entities(db, case_id)
+    except Exception:
+        pass
+
     entities = await db["entities"].find({"$or": [{"case_id": case_id}, {"caseId": case_id}]}).to_list(1000)
     print(f"[ENTITY_API] requested_case_id={case_id} found={len(entities)}")
+    for e in entities:
+        if not e.get("description"):
+            props = e.get("properties", {}) or {}
+            desc = props.get("description") or props.get("Role / Description") or props.get("role") or props.get("notes") or ""
+            if desc and str(desc).strip().lower() not in ["nan", "none", "-", "null"]:
+                e["description"] = str(desc).strip()
+            else:
+                e["description"] = f"Key {e.get('type', 'entity').lower()} identified in case evidence."
     return entities
 
 @router.get("/{entity_id}", response_model=EntityOut)
@@ -45,6 +80,13 @@ async def get_entity(entity_id: str, db=Depends(get_database), current_user=Depe
     
     if not entity:
         raise HTTPException(status_code=404, detail="Entity not found")
+    if not entity.get("description"):
+        props = entity.get("properties", {}) or {}
+        desc = props.get("description") or props.get("Role / Description") or props.get("role") or props.get("notes") or ""
+        if desc and str(desc).strip().lower() not in ["nan", "none", "-", "null"]:
+            entity["description"] = str(desc).strip()
+        else:
+            entity["description"] = f"Key {entity.get('type', 'entity').lower()} identified in case evidence."
     return entity
 
 @router.put("/bulk/positions")

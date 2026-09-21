@@ -44,9 +44,9 @@ export default function AnomaliesDashboard() {
     try {
       setLoading(true);
       const [entRes, relRes, evRes] = await Promise.all([
-        fetch(getApiUrl(`/api/entities/?case_id=${activeCaseId}`), { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(getApiUrl(`/api/relationships/?case_id=${activeCaseId}`), { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(getApiUrl(`/api/evidence/?case_id=${activeCaseId}`), { headers: { Authorization: `Bearer ${token}` } })
+        fetch(getApiUrl(`/api/entities?case_id=${activeCaseId}`), { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(getApiUrl(`/api/relationships?case_id=${activeCaseId}`), { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(getApiUrl(`/api/evidence?case_id=${activeCaseId}`), { headers: { Authorization: `Bearer ${token}` } })
       ]);
 
       if (entRes.ok) setEntities(await entRes.json());

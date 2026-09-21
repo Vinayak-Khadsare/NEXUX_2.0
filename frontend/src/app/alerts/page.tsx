@@ -30,19 +30,19 @@ export default function AlertsPage() {
       setLoading(true);
       
       // Fetch Entities
-      const entRes = await fetch(getApiUrl(`/api/entities/?case_id=${activeCaseId}`), {
+      const entRes = await fetch(getApiUrl(`/api/entities?case_id=${activeCaseId}`), {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (entRes.ok) setEntities(await entRes.json());
 
       // Fetch Relationships
-      const relRes = await fetch(getApiUrl(`/api/relationships/?case_id=${activeCaseId}`), {
+      const relRes = await fetch(getApiUrl(`/api/relationships?case_id=${activeCaseId}`), {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (relRes.ok) setRelationships(await relRes.json());
 
       // Fetch Alerts
-      const res = await fetch(getApiUrl(`/api/alerts/?case_id=${activeCaseId}`), {
+      const res = await fetch(getApiUrl(`/api/alerts?case_id=${activeCaseId}`), {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) setDbAlerts(await res.json());

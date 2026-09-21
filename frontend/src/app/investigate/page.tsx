@@ -50,18 +50,13 @@ export default function InvestigatePage() {
   const [selectedEntityRels, setSelectedEntityRels] = useState<any[]>([]);
 
   // Bottom Tabs
-  const [activeTab, setActiveTab] = useState<"EXPLORER" | "WKW" | "STORY">("EXPLORER");
+  const [activeTab, setActiveTab] = useState<"EXPLORER" | "STORY">("EXPLORER");
 
   // Connection Explorer
   const [sourceId, setSourceId] = useState("");
   const [targetId, setTargetId] = useState("");
   const [tracingPath, setTracingPath] = useState(false);
   const [pathResult, setPathResult] = useState<any>(null);
-
-  // Who Killed Who
-  const [wkwVictimId, setWkwVictimId] = useState("");
-  const [wkwPredicting, setWkwPredicting] = useState(false);
-  const [wkwResult, setWkwResult] = useState("");
 
   // Case Story
   const [generatingStory, setGeneratingStory] = useState(false);
@@ -83,10 +78,11 @@ export default function InvestigatePage() {
     const token = localStorage.getItem("token");
     try {
       setLoading(true);
-      const [entRes, relRes, graphRes] = await Promise.all([
-        fetch(getApiUrl(`/api/entities/?case_id=${activeCaseId}`), { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(getApiUrl(`/api/relationships/?case_id=${activeCaseId}`), { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(getApiUrl(`/api/network/${activeCaseId}`), { headers: { Authorization: `Bearer ${token}` } })
+      const [entRes, relRes, graphRes, caseRes] = await Promise.all([
+        fetch(getApiUrl(`/api/entities?case_id=${activeCaseId}`), { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(getApiUrl(`/api/relationships?case_id=${activeCaseId}`), { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(getApiUrl(`/api/network/${activeCaseId}`), { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(getApiUrl(`/api/cases/${activeCaseId}`), { headers: { Authorization: `Bearer ${token}` } })
       ]);
 
       let ents: any[] = [];
@@ -100,6 +96,13 @@ export default function InvestigatePage() {
       if (graphRes.ok) {
         const gData = await graphRes.json();
         setGraphData(gData);
+      }
+
+      if (caseRes.ok) {
+        const cData = await caseRes.json();
+        if (cData?.ai_narrative) {
+          setStoryNarrative(cData.ai_narrative);
+        }
       }
     } catch (err) {
       console.error(err);
@@ -350,14 +353,22 @@ export default function InvestigatePage() {
     }
   };
 
-  const handlePredictSuspects = () => {
-    const victim = entities.find(e => e._id === wkwVictimId);
-    if (!victim) return;
-    callAI(`Who killed ${victim.name}?`, setWkwResult, setWkwPredicting);
-  };
-
   const handleGenerateStory = () => {
-    callAI("Generate a chronological narrative of this case based on the relationships and events.", setStoryNarrative, setGeneratingStory);
+    callAI("Generate a chronological narrative of this case based on the relationships and events.", async (ans: string) => {
+      setStoryNarrative(ans);
+      if (ans && activeCaseId) {
+        const token = localStorage.getItem("token");
+        try {
+          await fetch(getApiUrl(`/api/cases/${activeCaseId}/narrative`), {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ narrative: ans })
+          });
+        } catch (e) {
+          console.error("Notice updating case narrative:", e);
+        }
+      }
+    }, setGeneratingStory);
   };
 
   const filteredGraphData = useMemo(() => {
@@ -411,10 +422,10 @@ export default function InvestigatePage() {
       <div className="flex-1 flex gap-4 min-h-0 overflow-hidden px-4 pt-4">
         
         {/* LEFT PANEL */}
-        <aside className="w-80 bg-[var(--surface-primary)]/90 border border-[var(--border-primary)] p-5 rounded-2xl flex flex-col gap-5 backdrop-blur-md shrink-0 overflow-y-auto shadow-xl">
+        <aside className="w-80 bg-[var(--surface-primary)] border border-[var(--border-primary)] p-5 rounded-2xl flex flex-col gap-5 shrink-0 overflow-y-auto shadow-sm">
           <div>
-            <h2 className="text-base font-extrabold text-[var(--text-primary)]">WORKSPACE FILTERS</h2>
-            <p className="text-[10px] text-[var(--text-tertiary)] font-bold uppercase mt-1">
+            <h2 className="text-sm font-extrabold text-[var(--text-primary)] tracking-tight">WORKSPACE FILTERS</h2>
+            <p className="text-[10px] text-[var(--text-tertiary)] font-bold uppercase mt-0.5">
               {activeCase ? activeCase.name : "No Case Selected"}
             </p>
           </div>
@@ -425,13 +436,13 @@ export default function InvestigatePage() {
               placeholder="Search Entities..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="p-2.5 rounded-lg bg-[var(--surface-secondary)] border border-[var(--border-primary)] text-xs focus:outline-none focus:border-[var(--primary-accent)] text-[var(--text-primary)]"
+              className="p-2.5 rounded-lg bg-[var(--surface-secondary)] border border-[var(--border-primary)] text-xs focus:outline-none focus:border-[var(--primary-accent)] text-[var(--text-primary)] transition-all"
             />
           </div>
 
           <div className="space-y-2">
             <label className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider block">Classification</label>
-            <div className="space-y-2 bg-[var(--surface-secondary)]/50 p-3 border border-[var(--border-primary)] rounded-xl text-xs text-[var(--text-secondary)]">
+            <div className="space-y-2 bg-[var(--surface-secondary)] p-3 border border-[var(--border-primary)] rounded-xl text-xs text-[var(--text-secondary)]">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={filters.person} onChange={() => setFilters({ ...filters, person: !filters.person })} className="rounded bg-[var(--surface-primary)] border-[var(--border-primary)] text-[var(--primary-accent)] focus:ring-0" />
                 <span><i className="fa-solid fa-user"></i> Persons</span>
@@ -473,12 +484,20 @@ export default function InvestigatePage() {
                 <div 
                   key={e._id} onClick={() => setSelectedEntity(e)}
                   className={`p-2.5 rounded-lg border cursor-pointer transition-all flex justify-between items-center ${
-                    selectedEntity?._id === e._id ? "bg-[var(--primary-accent)]/10 border-[var(--primary-accent)]/30 text-[var(--text-primary)] font-bold" : "bg-[var(--surface-secondary)] border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-[var(--primary-accent)]/50"
+                    selectedEntity?._id === e._id 
+                      ? "bg-[var(--bg-selected)] border-[var(--primary-accent)] text-[var(--text-primary)] font-bold shadow-xs" 
+                      : "bg-[var(--surface-secondary)] border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-[var(--primary-accent)]/50 hover:bg-[var(--surface-primary)]"
                   }`}
                 >
                   <span className="truncate max-w-[160px]">{e.name}</span>
-                  <span className={`text-[9px] px-1.5 py-0.5 rounded font-mono ${e.risk_score > 0.7 ? "bg-[var(--danger)]/15 text-[var(--danger)]" : e.risk_score > 0.4 ? "bg-[var(--warning)]/15 text-[var(--warning)]" : "bg-[var(--success)]/15 text-[var(--success)]"}`}>
-                    {(e.risk_score||0).toFixed(1)}
+                  <span className={`text-[9px] px-2 py-0.5 rounded-full font-mono font-bold border ${
+                    e.risk_score >= 0.7 
+                      ? "bg-[var(--danger-bg)] text-[var(--danger)] border-[var(--danger)]/20" 
+                      : e.risk_score >= 0.4 
+                      ? "bg-[var(--warning-bg)] text-[var(--warning)] border-[var(--warning)]/20" 
+                      : "bg-[var(--success-bg)] text-[var(--success)] border-[var(--success)]/20"
+                  }`}>
+                    {(e.risk_score||0).toFixed(2)}
                   </span>
                 </div>
               ))}
@@ -487,7 +506,7 @@ export default function InvestigatePage() {
         </aside>
 
         {/* CENTER AREA */}
-        <main className="flex-1 bg-black/60 border border-[var(--border-primary)] rounded-2xl relative overflow-hidden flex flex-col shadow-2xl">
+        <main className="flex-1 bg-[var(--graph-bg)] border border-[var(--border-primary)] rounded-2xl relative overflow-hidden flex flex-col shadow-sm">
           {activeCaseId && !loading && (
             <>
              <GraphEditorControls 
@@ -565,7 +584,7 @@ export default function InvestigatePage() {
           )}
 
           {activeCaseId && (
-            <div className="absolute top-4 right-4 p-4 rounded-xl border border-[var(--border-primary)] bg-[var(--surface-primary)]/80 backdrop-blur text-[10px] font-mono text-[var(--text-secondary)] space-y-1">
+            <div className="absolute top-4 right-4 p-3 rounded-xl border border-[var(--border-primary)] bg-[var(--surface-primary)]/90 backdrop-blur text-[10px] font-mono text-[var(--text-secondary)] space-y-1 shadow-xs">
               <div className="flex justify-between gap-4"><span>Nodes:</span> <span className="font-bold text-[var(--text-primary)]">{filteredGraphData.nodes.length}</span></div>
               <div className="flex justify-between gap-4"><span>Edges:</span> <span className="font-bold text-[var(--text-primary)]">{filteredGraphData.links.length}</span></div>
             </div>
@@ -573,18 +592,27 @@ export default function InvestigatePage() {
         </main>
 
         {/* RIGHT PANEL */}
-        <aside className="w-80 bg-[var(--surface-primary)]/90 border border-[var(--border-primary)] p-5 rounded-2xl flex flex-col gap-4 backdrop-blur-md shrink-0 overflow-y-auto shadow-xl">
+        <aside className="w-80 bg-[var(--surface-primary)] border border-[var(--border-primary)] p-5 rounded-2xl flex flex-col gap-4 shrink-0 overflow-y-auto shadow-sm">
           {selectedEntity ? (
             <>
               <div className="border-b border-[var(--border-primary)] pb-4 space-y-2">
-                <span className="px-2 py-0.5 text-[8px] font-extrabold bg-[var(--surface-secondary)] border border-[var(--border-primary)] text-[var(--text-secondary)] rounded-full tracking-wider uppercase">
-                  {selectedEntity.type}
-                </span>
+                <div className="flex items-center justify-between">
+                  <span className="px-2 py-0.5 text-[9px] font-extrabold bg-[var(--surface-secondary)] border border-[var(--border-primary)] text-[var(--text-secondary)] rounded-full tracking-wider uppercase">
+                    {selectedEntity.type}
+                  </span>
+                  <span className="text-[9px] font-bold text-[var(--text-tertiary)] uppercase tracking-widest">ENTITY PROFILE</span>
+                </div>
                 <h3 className="text-lg font-bold text-[var(--text-primary)] leading-tight">{selectedEntity.name}</h3>
-                <div className="bg-[var(--surface-secondary)]/50 p-3 rounded-lg border border-[var(--border-primary)] flex items-center justify-between">
-                  <span className="text-[10px] text-[var(--text-tertiary)] font-bold uppercase">Risk index</span>
-                  <span className={`text-sm font-extrabold font-mono ${selectedEntity.risk_score > 0.7 ? "text-[var(--danger)] animate-pulse" : selectedEntity.risk_score > 0.4 ? "text-[var(--warning)]" : "text-[var(--success)]"}`}>
-                    {selectedEntity.risk_score.toFixed(3)}
+                <div className="bg-[var(--surface-secondary)] p-3 rounded-lg border border-[var(--border-primary)] flex items-center justify-between">
+                  <span className="text-[10px] text-[var(--text-tertiary)] font-bold uppercase tracking-wider">Risk Index</span>
+                  <span className={`text-xs px-2.5 py-0.5 rounded-full font-extrabold font-mono border ${
+                    selectedEntity.risk_score >= 0.7 
+                      ? "bg-[var(--danger-bg)] text-[var(--danger)] border-[var(--danger)]/20" 
+                      : selectedEntity.risk_score >= 0.4 
+                      ? "bg-[var(--warning-bg)] text-[var(--warning)] border-[var(--warning)]/20" 
+                      : "bg-[var(--success-bg)] text-[var(--success)] border-[var(--success)]/20"
+                  }`}>
+                    {selectedEntity.risk_score.toFixed(2)}
                   </span>
                 </div>
               </div>
@@ -593,7 +621,7 @@ export default function InvestigatePage() {
                 <h4 className="text-[9px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">Node Details</h4>
                 <div className="space-y-1 max-h-[150px] overflow-y-auto pr-1 scrollbar-thin">
                   {Object.entries(selectedEntity.properties || {}).map(([k, v]) => (
-                    <div key={k} className="flex justify-between items-center text-[11px] p-2 rounded bg-[var(--surface-secondary)]/50 border border-[var(--border-primary)]">
+                    <div key={k} className="flex justify-between items-center text-[11px] p-2 rounded bg-[var(--surface-secondary)] border border-[var(--border-primary)]">
                       <span className="text-[var(--text-secondary)] font-mono">{k}</span>
                       <span className="text-[var(--text-primary)] font-bold truncate max-w-[120px]">{String(v)}</span>
                     </div>
@@ -605,7 +633,7 @@ export default function InvestigatePage() {
                 <h4 className="text-[9px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider mb-2 block">Direct Links ({selectedEntityRels.length})</h4>
                 <div className="flex-1 overflow-y-auto space-y-2 pr-1 scrollbar-thin">
                   {selectedEntityRels.map((rel, idx) => (
-                    <div key={idx} className="p-3 rounded-xl bg-[var(--surface-secondary)]/50 border border-[var(--border-primary)] text-[11px] space-y-1">
+                    <div key={idx} className="p-3 rounded-xl bg-[var(--surface-secondary)] border border-[var(--border-primary)] text-[11px] space-y-1">
                       <div className="flex justify-between font-semibold">
                         <span className="text-[var(--text-primary)] truncate max-w-[110px]">{rel.targetName}</span>
                         <span className="text-[var(--primary-accent)] font-bold">{rel.type}</span>
@@ -620,23 +648,26 @@ export default function InvestigatePage() {
               </div>
             </>
           ) : (
-            <div className="flex-1 flex items-center justify-center text-center p-6 text-[var(--text-tertiary)] text-xs font-bold uppercase tracking-wider">
-              Select a node
+            <div className="flex-1 flex flex-col items-center justify-center text-center p-6 gap-3">
+              <div className="w-12 h-12 rounded-full border border-[var(--border-primary)] bg-[var(--surface-secondary)] flex items-center justify-center text-[var(--text-tertiary)] text-lg">
+                <i className="fa-solid fa-circle-nodes"></i>
+              </div>
+              <h4 className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider">Select a Node</h4>
+              <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed max-w-[200px]">
+                Select an entity in the network to inspect its relationships, evidence, and risk profile.
+              </p>
             </div>
           )}
         </aside>
       </div>
 
       {/* LOWER PANEL WITH TABS */}
-      <footer className="h-72 bg-[var(--surface-primary)]/90 border-t border-[var(--border-primary)] p-4 backdrop-blur-md flex flex-col shrink-0 z-10 shadow-2xl mx-4 mb-4 rounded-2xl">
+      <footer className="h-72 bg-[var(--surface-primary)] border border-[var(--border-primary)] p-4 flex flex-col shrink-0 z-10 shadow-sm mx-4 mb-4 rounded-2xl">
         
         {/* TABS HEADER */}
         <div className="flex gap-4 border-b border-[var(--border-primary)] mb-4">
           <button onClick={() => setActiveTab("EXPLORER")} className={`pb-2 text-xs font-bold uppercase tracking-wider transition-colors border-b-2 ${activeTab === "EXPLORER" ? "border-[var(--primary-accent)] text-[var(--primary-accent)]" : "border-transparent text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"}`}>
             <i className="fa-solid fa-link"></i> Connection Explorer
-          </button>
-          <button onClick={() => setActiveTab("WKW")} className={`pb-2 text-xs font-bold uppercase tracking-wider transition-colors border-b-2 ${activeTab === "WKW" ? "border-[var(--danger)] text-[var(--danger)]" : "border-transparent text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"}`}>
-            <i className="fa-solid fa-skull"></i> Who Killed Who
           </button>
           <button onClick={() => setActiveTab("STORY")} className={`pb-2 text-xs font-bold uppercase tracking-wider transition-colors border-b-2 ${activeTab === "STORY" ? "border-[var(--info)] text-[var(--info)]" : "border-transparent text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"}`}>
             <i className="fa-solid fa-book-open"></i> Case Story
@@ -699,46 +730,6 @@ export default function InvestigatePage() {
                           </React.Fragment>
                         );
                       })}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* WHO KILLED WHO */}
-          {activeTab === "WKW" && (
-            <div className="flex w-full gap-6">
-              <div className="w-1/3 flex flex-col border-r border-[var(--border-primary)] pr-6 overflow-hidden">
-                <p className="text-[10px] text-[var(--text-secondary)] mb-3 leading-relaxed">
-                  Select a victim and let the NEXUS AI engine predict top suspects based on graph connections, threat anomalies, and evidence timeline.
-                </p>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[9px] text-[var(--text-secondary)] font-bold uppercase">Victim / Target</label>
-                  <select value={wkwVictimId} onChange={(e) => setWkwVictimId(e.target.value)} className="p-2.5 rounded-lg bg-[var(--surface-secondary)] border border-[var(--border-primary)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--danger)]">
-                    <option value="">-- Select Person --</option>
-                    {entities.filter(e => e.type === "PERSON").map(e => <option key={e._id} value={e._id}>{e.name}</option>)}
-                  </select>
-                </div>
-                <button onClick={handlePredictSuspects} disabled={wkwPredicting || !wkwVictimId} className="w-full mt-4 p-2.5 bg-gradient-to-r from-[var(--danger)] to-orange-500 hover:from-red-600 hover:to-orange-600 disabled:opacity-50 rounded-lg text-white text-xs font-bold transition-all shadow-md shadow-red-500/20">
-                  {wkwPredicting ? "Running Threat Heuristics..." : "Predict Suspects"}
-                </button>
-              </div>
-              <div className="flex-1 flex flex-col overflow-hidden min-h-0 pl-2">
-                <h3 className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider mb-2">AI Suspect Prediction</h3>
-                <div className="flex-1 overflow-y-auto pr-2 scrollbar-thin">
-                  {wkwPredicting ? (
-                    <div className="h-full flex flex-col items-center justify-center gap-3 text-[var(--danger)]">
-                      <div className="animate-spin h-6 w-6 border-2 border-t-[var(--danger)] border-[var(--danger)]/20 rounded-full"></div>
-                      <span className="text-xs font-mono font-bold animate-pulse">ANALYZING GRAPH TOPOLOGY...</span>
-                    </div>
-                  ) : wkwResult ? (
-                    <div className="bg-[var(--surface-secondary)]/50 border border-[var(--border-primary)] p-4 rounded-xl text-sm text-[var(--text-primary)] leading-relaxed whitespace-pre-wrap font-mono">
-                      {wkwResult}
-                    </div>
-                  ) : (
-                    <div className="h-full flex items-center justify-center text-[var(--text-tertiary)] italic text-xs">
-                      Awaiting target selection.
                     </div>
                   )}
                 </div>

@@ -11,6 +11,7 @@ from typing import List
 router = APIRouter()
 
 @router.get("", response_model=List[AlertOut])
+@router.get("/", response_model=List[AlertOut], include_in_schema=False)
 async def get_alerts(case_id: str = None, status: str = None, db=Depends(get_database), current_user=Depends(get_current_user)):
     query = {}
     if case_id:

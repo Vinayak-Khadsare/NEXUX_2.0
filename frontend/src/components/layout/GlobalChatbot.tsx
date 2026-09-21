@@ -52,7 +52,7 @@ export default function GlobalChatbot() {
     
     if (activeCaseId) {
       const token = localStorage.getItem("token");
-      fetch(getApiUrl(`/api/entities/?case_id=${activeCaseId}`), {
+      fetch(getApiUrl(`/api/entities?case_id=${activeCaseId}`), {
         headers: { Authorization: `Bearer ${token}` }
       }).then(res => res.json()).then(data => {
         if (Array.isArray(data)) setCaseEntities(data);

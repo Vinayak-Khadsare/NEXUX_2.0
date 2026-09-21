@@ -26,6 +26,7 @@ async def create_case(case: CaseCreate, db=Depends(get_database), current_user=D
     return created_case
 
 @router.get("", response_model=List[CaseOut])
+@router.get("/", response_model=List[CaseOut], include_in_schema=False)
 async def list_cases(db=Depends(get_database), current_user=Depends(get_current_user)):
     cases = await db["cases"].find().to_list(100)
     return cases
@@ -70,6 +71,26 @@ async def delete_case(case_id: str, case=Depends(verify_case_access), db=Depends
     await db["timeline"].delete_many(query)
 
     from app.core.audit import log_audit_action
-    await log_audit_action(db, current_user["email"], "DELETE_CASE", case_id_str)
-    
     return {"message": "Case and all associated records deleted successfully"}
+
+from pydantic import BaseModel
+
+class CaseNarrativeUpdate(BaseModel):
+    narrative: str
+
+@router.patch("/{case_id}/narrative")
+async def update_case_narrative(
+    case_id: str,
+    payload: CaseNarrativeUpdate,
+    db=Depends(get_database),
+    current_user=Depends(get_current_user)
+):
+    query_filter = {"$or": [{"_id": ObjectId(case_id)}, {"caseId": case_id}]} if ObjectId.is_valid(case_id) else {"$or": [{"_id": case_id}, {"caseId": case_id}]}
+    res = await db["cases"].update_one(
+        query_filter,
+        {"$set": {"ai_narrative": payload.narrative, "narrative_generated_at": datetime.utcnow()}}
+    )
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Case not found")
+    return {"message": "Case narrative updated successfully"}
+

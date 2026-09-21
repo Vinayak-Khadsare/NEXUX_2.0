@@ -25,7 +25,7 @@ export default function AnalyticsPage() {
     try {
       setLoading(true);
       // Fetch Entities for profile names mapping
-      const entRes = await fetch(getApiUrl(`/api/entities/?case_id=${activeCaseId}`), {
+      const entRes = await fetch(getApiUrl(`/api/entities?case_id=${activeCaseId}`), {
         headers: { Authorization: `Bearer ${token}` }
       });
       let entsList: any[] = [];

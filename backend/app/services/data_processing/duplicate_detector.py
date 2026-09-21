@@ -45,6 +45,20 @@ async def detect_duplicates(db, case_id: str, entity_data: Dict[str, Any], exclu
         
         confidence = 0
         reasons = []
+
+        ent_code = str(props.get("entity_id") or props.get("Entity ID") or props.get("identifier") or props.get("code") or "").strip().upper()
+        ex_code = str(ex_props.get("entity_id") or ex_props.get("Entity ID") or ex_props.get("identifier") or ex_props.get("code") or ex.get("entity_id") or "").strip().upper()
+
+        # 0. Exact identifier / code match (100% confidence)
+        if ent_code and ex_code and ent_code == ex_code:
+            confidence = max(confidence, 100)
+            reasons.append(f"Exact identifier code match ({ent_code}).")
+        if ent_code and ex_name.strip().upper() == ent_code:
+            confidence = max(confidence, 100)
+            reasons.append(f"Entity identifier matches code name ({ent_code}).")
+        if ex_code and name.strip().upper() == ex_code:
+            confidence = max(confidence, 100)
+            reasons.append(f"Entity name matches identifier code ({ex_code}).")
         
         # 1. Exact email match (High confidence identifier)
         if email and email == ex_email:

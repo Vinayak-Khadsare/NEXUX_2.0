@@ -19,3 +19,4 @@ async def api_extract_entities(payload: TextPayload, current_user=Depends(get_cu
 async def api_summarize(payload: TextPayload, current_user=Depends(get_current_user)):
     summary = await summarize_text(payload.text)
     return {"summary": summary}
+    

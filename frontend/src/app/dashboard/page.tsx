@@ -322,7 +322,7 @@ export default function Dashboard() {
                   );
                 })}
               </div>
-              <Link href="/entities" className="text-[10px] uppercase font-bold text-[var(--primary-accent)] hover:text-white mt-2 block w-full text-center transition-colors flex items-center justify-center gap-1.5 group">
+              <Link href="/entities" className="text-[10px] uppercase font-bold text-[var(--primary-accent)] hover:text-[var(--primary-hover)] mt-2 block w-full text-center transition-colors flex items-center justify-center gap-1.5 group">
                 View All Targets <FontAwesomeIcon icon={faChevronRight} className="text-[9px] group-hover:translate-x-1 transition-transform" />
               </Link>
             </div>
@@ -331,7 +331,7 @@ export default function Dashboard() {
           {/* RIGHT PANEL */}
           <div className="w-[320px] flex flex-col gap-4 pointer-events-auto h-full min-h-0">
             {/* Network Topology */}
-            <div className="w-full bg-[var(--surface-primary)]/80 backdrop-blur-md border border-[var(--border-primary)] rounded-xl p-4 shadow-xl hover:border-[var(--border-secondary)] transition-colors">
+            <div className="w-full bg-[var(--surface-primary)] border border-[var(--border-primary)] rounded-xl p-4 shadow-sm hover:border-[var(--border-secondary)] transition-colors">
               <h3 className="text-[10px] font-black text-[var(--text-tertiary)] uppercase tracking-widest mb-4 flex items-center gap-2">
                 <FontAwesomeIcon icon={faProjectDiagram} className="opacity-70" /> Network Topology
               </h3>
@@ -364,7 +364,7 @@ export default function Dashboard() {
             </div>
 
             {/* Case Alerts */}
-            <div className="w-full flex-1 bg-[var(--surface-primary)]/80 backdrop-blur-md border border-[var(--border-primary)] rounded-xl p-4 shadow-xl flex flex-col gap-3 hover:border-[var(--border-secondary)] transition-colors">
+            <div className="w-full flex-1 bg-[var(--surface-primary)] border border-[var(--border-primary)] rounded-xl p-4 shadow-sm flex flex-col gap-3 hover:border-[var(--border-secondary)] transition-colors">
               <div className="flex items-center justify-between mb-1">
                 <h3 className="text-[10px] font-black text-[var(--text-tertiary)] uppercase tracking-widest flex items-center gap-2">
                   <FontAwesomeIcon icon={faTriangleExclamation} className="opacity-70" /> Recent Alerts
@@ -374,20 +374,20 @@ export default function Dashboard() {
               
               <div className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
                 {alerts.length === 0 ? (
-                  <div className="h-full flex flex-col items-center justify-center text-center opacity-70">
-                    <div className="w-12 h-12 rounded-full border border-[var(--border-primary)] bg-[var(--surface-secondary)] flex items-center justify-center mb-3 text-[var(--success)]">
-                      <FontAwesomeIcon icon={faCircleCheck} className="text-2xl" />
+                  <div className="h-full flex flex-col items-center justify-center text-center opacity-90 p-4">
+                    <div className="w-10 h-10 rounded-full border border-[var(--border-primary)] bg-[var(--surface-secondary)] flex items-center justify-center mb-2.5 text-[var(--success)]">
+                      <FontAwesomeIcon icon={faCircleCheck} className="text-xl" />
                     </div>
-                    <p className="text-[11px] text-[var(--text-primary)] uppercase font-black tracking-widest mb-1.5">No Active Alerts</p>
-                    <p className="text-[10px] text-[var(--text-secondary)] max-w-[200px] leading-relaxed mb-4">The investigation is currently operating within normal thresholds.</p>
-                    <div className="text-[9px] font-mono font-bold text-[var(--success)] flex items-center gap-1.5 bg-[var(--success)]/10 px-2.5 py-1 rounded-full border border-[var(--success)]/20">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)] animate-pulse shadow-[0_0_5px_var(--success)]" /> MONITORING ACTIVE
+                    <p className="text-[11px] text-[var(--text-primary)] uppercase font-black tracking-wider mb-1">No Active Alerts</p>
+                    <p className="text-[10px] text-[var(--text-secondary)] max-w-[200px] leading-relaxed mb-3">The investigation is currently operating within normal monitoring thresholds.</p>
+                    <div className="text-[9px] font-mono font-bold text-[var(--success)] flex items-center gap-1.5 bg-[var(--bg-green-light)] px-2.5 py-1 rounded-full border border-[var(--primary-accent)]/20">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)] animate-pulse" /> MONITORING ACTIVE
                     </div>
                   </div>
                 ) : (
                   alerts.map(alert => {
                     const style = getAlertStyle(alert.severity);
-                    const className = `block p-3 rounded-xl bg-[var(--surface-secondary)]/50 border border-[var(--border-primary)] hover:border-white/20 hover:bg-[var(--surface-tertiary)] hover:-translate-y-0.5 transition-all cursor-pointer shadow-sm group`;
+                    const className = `block p-3 rounded-xl bg-[var(--surface-secondary)]/50 border border-[var(--border-primary)] hover:border-[var(--border-secondary)] hover:bg-[var(--surface-tertiary)] hover:-translate-y-0.5 transition-all cursor-pointer shadow-xs group`;
                     const content = (
                         <div className="flex gap-3">
                           <div className={`mt-0.5 w-7 h-7 rounded-full flex items-center justify-center shrink-0 border ${style.lightBg} ${style.border}/30 ${style.color}`}>
@@ -398,7 +398,7 @@ export default function Dashboard() {
                               <span className={`text-[9px] font-black uppercase tracking-widest ${style.color}`}>{alert.type || alert.severity || "ALERT"}</span>
                               <span className="text-[9px] font-mono text-[var(--text-tertiary)] shrink-0 ml-2">{alert.created_at ? formatRelativeTime(alert.created_at) : 'recently'}</span>
                             </div>
-                            <p className="text-xs text-[var(--text-primary)] font-bold truncate mb-1 group-hover:text-white transition-colors">{alert.title || (alert.entity_id ? `Alert on Entity ${alert.entity_id.substring(0,6)}` : alert.type)}</p>
+                            <p className="text-xs text-[var(--text-primary)] font-bold truncate mb-1 group-hover:text-[var(--primary-accent)] transition-colors">{alert.title || (alert.entity_id ? `Alert on Entity ${alert.entity_id.substring(0,6)}` : alert.type)}</p>
                             <p className="text-[10px] text-[var(--text-secondary)] leading-snug line-clamp-2">{alert.message}</p>
                           </div>
                         </div>
@@ -414,7 +414,7 @@ export default function Dashboard() {
               
               {alerts.length > 0 && (
                 <div className="pt-2 border-t border-[var(--border-primary)]">
-                  <Link href="/alerts" className="text-[10px] uppercase font-bold text-[var(--text-secondary)] hover:text-white block w-full text-center transition-colors flex items-center justify-center gap-1.5 group">
+                  <Link href="/alerts" className="text-[10px] uppercase font-bold text-[var(--text-secondary)] hover:text-[var(--primary-accent)] block w-full text-center transition-colors flex items-center justify-center gap-1.5 group">
                     VIEW ALL ALERTS <FontAwesomeIcon icon={faArrowRight} className="text-[9px] group-hover:translate-x-1 transition-transform" />
                   </Link>
                 </div>

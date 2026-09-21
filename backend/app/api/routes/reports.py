@@ -50,7 +50,12 @@ async def generate_report(
     veh_count = sum(1 for e in entities if e.get("type", "").upper() == "VEHICLE")
     
     important_entities = [
-        {"name": e.get("name"), "type": e.get("type"), "risk_score": e.get("risk_score", 0)}
+        {
+            "name": e.get("name"),
+            "type": e.get("type"),
+            "risk_score": e.get("risk_score", 0),
+            "description": e.get("description") or e.get("properties", {}).get("description") or e.get("properties", {}).get("Role / Description") or e.get("properties", {}).get("role") or ""
+        }
         for e in sorted(entities, key=lambda x: x.get("risk_score", 0), reverse=True)[:15]
     ]
     
@@ -105,6 +110,8 @@ async def generate_report(
             "created_at": str(case.get("created_at")),
             "investigator": case.get("investigator") or case.get("created_by", "UNASSIGNED")
         },
+        "ai_narrative": case.get("ai_narrative") or None,
+        "narrative_generated_at": str(case.get("narrative_generated_at")) if case.get("narrative_generated_at") else None,
         "metadata_summary": {
             "total_entities": len(entities),
             "total_relationships": len(relationships),
