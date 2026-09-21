@@ -1,9 +1,19 @@
 "use client";
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useCase } from "@/context/CaseContext";
+import { useSearchParams } from "next/navigation";
 
 export default function EntitiesPage() {
+  return (
+    <Suspense fallback={<div className="p-6 text-zinc-500 font-mono text-xs">Loading entities...</div>}>
+      <EntitiesContent />
+    </Suspense>
+  );
+}
+
+function EntitiesContent() {
   const { activeCaseId } = useCase();
+  const searchParams = useSearchParams();
   const [entities, setEntities] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -17,6 +27,18 @@ export default function EntitiesPage() {
 
   // Selected entity profile state
   const [selectedEntity, setSelectedEntity] = useState<any | null>(null);
+
+  // Auto-select entity if specified in query params
+  useEffect(() => {
+    const idParam = searchParams.get("id");
+    if (idParam && entities.length > 0) {
+      const match = entities.find(e => e._id === idParam || e.id === idParam);
+      if (match) {
+        setSelectedEntity(match);
+      }
+    }
+  }, [searchParams, entities]);
+
   const [loadingProfile, setLoadingProfile] = useState(false);
   const [profileRelationships, setProfileRelationships] = useState<any[]>([]);
 
@@ -303,22 +325,37 @@ export default function EntitiesPage() {
                       }`}
                       onClick={() => setSelectedEntity(ent)}
                     >
-                      <td className="py-4 px-6 font-bold text-[var(--text-primary)] text-sm">{ent.name}</td>
+                      <td className="py-4 px-6 font-bold text-[var(--text-primary)] text-sm">
+                        <div className="flex items-center gap-2">
+                          <span>{ent.name}</span>
+                          {ent.properties?.is_cleared && (
+                            <span className="px-1.5 py-0.5 text-[9px] font-bold rounded bg-[var(--success)]/15 text-[var(--success)] border border-[var(--success)]/30 font-mono">
+                              INNOCENT
+                            </span>
+                          )}
+                        </div>
+                      </td>
                       <td className="py-4 px-6">
                         <span className="px-2.5 py-1 text-xs rounded-full bg-[var(--surface-secondary)] border border-[var(--border-primary)] text-[var(--text-secondary)] font-semibold">
                           {ent.type}
                         </span>
                       </td>
                       <td className="py-4 px-6 text-center">
-                        <span className={`px-2.5 py-0.5 text-xs font-bold rounded-full font-mono border ${
-                          ent.risk_score >= 0.7 
-                            ? "bg-[var(--danger-bg)] text-[var(--danger)] border-[var(--danger)]/20" 
-                            : ent.risk_score >= 0.4 
-                            ? "bg-[var(--warning-bg)] text-[var(--warning)] border-[var(--warning)]/20" 
-                            : "bg-[var(--success-bg)] text-[var(--success)] border-[var(--success)]/20"
-                        }`}>
-                          {(ent.risk_score || 0.0).toFixed(2)}
-                        </span>
+                        {ent.properties?.is_cleared ? (
+                          <span className="px-2.5 py-0.5 text-xs font-bold rounded-full font-mono border bg-[var(--success-bg)] text-[var(--success)] border-[var(--success)]/20">
+                            0.00 (CLEARED)
+                          </span>
+                        ) : (
+                          <span className={`px-2.5 py-0.5 text-xs font-bold rounded-full font-mono border ${
+                            ent.risk_score >= 0.7 
+                              ? "bg-[var(--danger-bg)] text-[var(--danger)] border-[var(--danger)]/20" 
+                              : ent.risk_score >= 0.4 
+                              ? "bg-[var(--warning-bg)] text-[var(--warning)] border-[var(--warning)]/20" 
+                              : "bg-[var(--success-bg)] text-[var(--success)] border-[var(--success)]/20"
+                          }`}>
+                            {(ent.risk_score || 0.0).toFixed(2)}
+                          </span>
+                        )}
                       </td>
                       <td className="py-4 px-6 text-xs max-w-sm truncate text-[var(--text-secondary)]">
                         {(() => {
@@ -382,9 +419,16 @@ export default function EntitiesPage() {
 
           {/* Profile Header */}
           <div className="space-y-3 pb-5 border-b border-[var(--border-primary)]">
-            <span className="px-2 py-0.5 text-[9px] font-extrabold bg-[var(--surface-secondary)] border border-[var(--border-primary)] text-[var(--text-secondary)] rounded-full tracking-wider uppercase">
-              {selectedEntity.type}
-            </span>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="px-2 py-0.5 text-[9px] font-extrabold bg-[var(--surface-secondary)] border border-[var(--border-primary)] text-[var(--text-secondary)] rounded-full tracking-wider uppercase">
+                {selectedEntity.type}
+              </span>
+              {selectedEntity.properties?.is_cleared && (
+                <span className="px-2.5 py-0.5 text-[9px] font-extrabold bg-[var(--success)]/15 border border-[var(--success)]/30 text-[var(--success)] rounded-full tracking-wider uppercase flex items-center gap-1">
+                  <i className="fa-solid fa-shield-halved"></i> INNOCENT / CLEARED (FREE TO GO)
+                </span>
+              )}
+            </div>
             <h2 className="text-xl font-extrabold text-[var(--text-primary)]">{selectedEntity.name}</h2>
             
             {/* Risk gauge */}
@@ -393,15 +437,15 @@ export default function EntitiesPage() {
               <div className="flex-1 h-2 rounded-full bg-[var(--border-primary)] overflow-hidden">
                 <div 
                   className={`h-full rounded-full ${
-                    selectedEntity.risk_score >= 0.7 ? "bg-[var(--danger)]" : selectedEntity.risk_score >= 0.4 ? "bg-[var(--warning)]" : "bg-[var(--primary-accent)]"
+                    selectedEntity.properties?.is_cleared ? "bg-[var(--success)]" : selectedEntity.risk_score >= 0.7 ? "bg-[var(--danger)]" : selectedEntity.risk_score >= 0.4 ? "bg-[var(--warning)]" : "bg-[var(--primary-accent)]"
                   }`} 
-                  style={{ width: `${Math.min((selectedEntity.risk_score || 0.0) * 100, 100)}%` }} 
+                  style={{ width: `${Math.min((selectedEntity.properties?.is_cleared ? 0.0 : (selectedEntity.risk_score || 0.0)) * 100, 100)}%` }} 
                 />
               </div>
               <span className={`text-xs font-bold font-mono ${
-                selectedEntity.risk_score >= 0.7 ? "text-[var(--danger)]" : selectedEntity.risk_score >= 0.4 ? "text-[var(--warning)]" : "text-[var(--primary-accent)]"
+                selectedEntity.properties?.is_cleared ? "text-[var(--success)]" : selectedEntity.risk_score >= 0.7 ? "text-[var(--danger)]" : selectedEntity.risk_score >= 0.4 ? "text-[var(--warning)]" : "text-[var(--primary-accent)]"
               }`}>
-                {(selectedEntity.risk_score || 0.0).toFixed(2)}
+                {selectedEntity.properties?.is_cleared ? "0.00 (CLEARED)" : (selectedEntity.risk_score || 0.0).toFixed(2)}
               </span>
             </div>
           </div>

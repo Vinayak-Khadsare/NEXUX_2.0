@@ -1,5 +1,6 @@
 import React from 'react';
-import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
+import { Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer';
+import { generateNetworkReportSnapshot } from '@/lib/networkSnapshot';
 
 const styles = StyleSheet.create({
   page: {
@@ -92,6 +93,7 @@ interface Props {
   relationships: any[];
   evidence: any[];
   reportData?: any;
+  networkSnapshot?: string | null;
 }
 
 function getEntityDescription(ent: any, relationships: any[] = [], allEntities: any[] = []): string {
@@ -197,56 +199,253 @@ function cleanPdfText(val: any): string {
     .replace(/`/g, '');
 }
 
-function renderCleanNarrative(text: string) {
-  if (!text) return null;
-  // Replace rupee symbol so standard Helvetica does not render it as corrupt superscript ¹
-  const sanitized = text
-    .replace(/₹/g, 'INR ')
-    .replace(/\*\*/g, '')
-    .replace(/`/g, '');
-  const lines = sanitized.split('\n');
+const MONTH_NAMES = [
+  'JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE',
+  'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'
+];
 
-  return lines.map((line, idx) => {
-    const trimmed = line.trim();
-    if (!trimmed) {
-      return <View key={idx} style={{ height: 3 }} />;
-    }
-
-    // Check if it's a section header like '### 1. Executive Summary', '1. Executive Summary', or 'Conclusion'
-    const isHeading = trimmed.startsWith('#') || 
-      /^[1-5]\.\s+[A-Za-z]/.test(trimmed) || 
-      /^(Executive Summary|Chronological Sequence|Key Entities|Investigative Findings|Conclusion)/i.test(trimmed);
-    
-    const cleanText = trimmed
-      .replace(/^#+\s*/, '')
-      .replace(/\*\*/g, '')
-      .replace(/^\s*[-*]\s*/, '• ')
-      .trim();
-
-    if (isHeading) {
-      return (
-        <Text key={idx} style={{ fontSize: 9.5, fontWeight: 'bold', color: '#1e293b', marginTop: 6, marginBottom: 2 }}>
-          {cleanText}
-        </Text>
-      );
-    }
-
-    const isBullet = cleanText.startsWith('•');
-
-    return (
-      <Text key={idx} style={{ ...styles.text, paddingLeft: isBullet ? 6 : 0, marginBottom: isBullet ? 2 : 4 }}>
-        {cleanText}
-      </Text>
-    );
-  });
+interface ChronologicalEvent {
+  date: string;
+  displayDate: string;
+  time: string;
+  sortKey: string;
+  description: string;
+  entities?: string[];
+  source?: string;
 }
 
-export default function CaseReportPDF({ caseData, entities, relationships, evidence, reportData }: Props) {
+interface DateGroup {
+  date: string;
+  displayDate: string;
+  events: ChronologicalEvent[];
+}
+
+function formatDisplayDate(dateStr: string): string {
+  if (!dateStr) return 'DATE UNSPECIFIED';
+  const m = String(dateStr).match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (m) {
+    const yr = m[1];
+    const mo = parseInt(m[2], 10);
+    const day = parseInt(m[3], 10);
+    if (mo >= 1 && mo <= 12) {
+      return `${day} ${MONTH_NAMES[mo - 1]} ${yr}`;
+    }
+  }
+  const d = new Date(dateStr);
+  if (!isNaN(d.getTime())) {
+    return `${d.getDate()} ${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`;
+  }
+  return String(dateStr).toUpperCase();
+}
+
+function formatDisplayTime(timeStr?: string): string {
+  if (!timeStr || !String(timeStr).trim() || ['none', 'null', 'undefined'].includes(String(timeStr).trim().toLowerCase())) {
+    return 'Time: Not specified';
+  }
+  const s = String(timeStr).trim();
+  if (s.toLowerCase().includes('not specified')) return 'Time: Not specified';
+  if (/\b(AM|PM)\b/i.test(s)) return s.toUpperCase();
+  const m = s.match(/^(\d{1,2}):(\d{2})(?::\d{2})?/);
+  if (m) {
+    let hr = parseInt(m[1], 10);
+    const mn = m[2];
+    const ampm = hr >= 12 ? 'PM' : 'AM';
+    hr = hr % 12;
+    if (hr === 0) hr = 12;
+    const hh = hr < 10 ? `0${hr}` : `${hr}`;
+    return `${hh}:${mn} ${ampm}`;
+  }
+  return s;
+}
+
+function parseDateAndTime(val: any): { sortKey: string; date: string; time?: string } | null {
+  if (!val) return null;
+  const s = String(val).trim();
+  const m = s.match(/(\d{4}-\d{2}-\d{2})(?:[T\s](\d{1,2}:\d{2})(?::\d{2})?)?/);
+  if (m) {
+    const d = m[1];
+    const t = m[2];
+    return {
+      sortKey: `${d} ${t ? t : '00:00:00'}`,
+      date: d,
+      time: t
+    };
+  }
+  const m2 = s.match(/(\d{1,2})\s+(January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+(\d{4})(?:[,\s]+(\d{1,2}:\d{2}(?:\s*[AP]M)?))?/i);
+  if (m2) {
+    const day = parseInt(m2[1], 10);
+    const monStr = m2[2].substring(0, 3).toUpperCase();
+    const yr = m2[3];
+    const tm = m2[4];
+    const moIdx = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'].indexOf(monStr);
+    if (moIdx >= 0) {
+      const d = `${yr}-${String(moIdx + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      return {
+        sortKey: `${d} ${tm ? tm : '00:00:00'}`,
+        date: d,
+        time: tm
+      };
+    }
+  }
+  return null;
+}
+
+function extractChronologicalEvents(
+  reportData: any,
+  entities: any[] = [],
+  relationships: any[] = [],
+  evidence: any[] = [],
+  caseData: any = {}
+): DateGroup[] {
+  const collected: ChronologicalEvent[] = [];
+
+  // 1. From backend compiled reportData.chronological_events
+  if (Array.isArray(reportData?.chronological_events) && reportData.chronological_events.length > 0) {
+    for (const evt of reportData.chronological_events) {
+      if (evt?.date) {
+        collected.push({
+          date: String(evt.date),
+          displayDate: evt.display_date || formatDisplayDate(String(evt.date)),
+          time: formatDisplayTime(evt.time),
+          sortKey: evt.sort_key || `${evt.date} 00:00:00`,
+          description: evt.description || evt.name || '',
+          entities: Array.isArray(evt.entities) ? evt.entities : (evt.entity ? [evt.entity] : []),
+          source: evt.source || ''
+        });
+      }
+    }
+  }
+
+  // 2. From reportData.timeline_summary.events
+  if (collected.length === 0 && Array.isArray(reportData?.timeline_summary?.events)) {
+    for (const evt of reportData.timeline_summary.events) {
+      const parsed = parseDateAndTime(evt.timestamp || evt.date);
+      if (parsed) {
+        collected.push({
+          date: parsed.date,
+          displayDate: evt.display_date || formatDisplayDate(parsed.date),
+          time: formatDisplayTime(evt.time || parsed.time),
+          sortKey: parsed.sortKey,
+          description: evt.description || evt.title || evt.name || '',
+          entities: Array.isArray(evt.entities) ? evt.entities : (evt.entity ? [evt.entity] : []),
+          source: evt.source || (evt.properties?.Evidence ? `EV-${evt.properties.Evidence}` : '')
+        });
+      }
+    }
+  }
+
+  // 3. From ai_narrative if events are still missing or from prior case narrative
+  const narrative = reportData?.ai_narrative || caseData?.ai_narrative;
+  if (collected.length === 0 && typeof narrative === 'string' && narrative.trim()) {
+    const lines = narrative.split('\n');
+    for (const rawLine of lines) {
+      const line = rawLine.trim().replace(/^[-*•\s]+/, '');
+      if (!line) continue;
+      // Discard narrative titles like Executive Summary, Conclusion, etc.
+      if (/^(Executive Summary|Key Entities|Investigative Findings|Conclusion|Case Overview|Recommendations)/i.test(line)) {
+        continue;
+      }
+      const parsed = parseDateAndTime(line);
+      if (parsed) {
+        let desc = line
+          .replace(new RegExp('^(?:On\\s+)?' + parsed.date + '[:,]?\\s*', 'i'), '')
+          .trim();
+        if (parsed.time) {
+          desc = desc.replace(new RegExp('^(?:at\\s+)?' + parsed.time + '(?:\\s*[AP]M)?[:,]?\\s*', 'i'), '').trim();
+        }
+        const matchedEnts = entities
+          .filter(e => e.name && desc.toLowerCase().includes(String(e.name).toLowerCase()))
+          .map(e => e.name)
+          .slice(0, 3);
+
+        collected.push({
+          date: parsed.date,
+          displayDate: formatDisplayDate(parsed.date),
+          time: formatDisplayTime(parsed.time),
+          sortKey: parsed.sortKey,
+          description: desc,
+          entities: matchedEnts,
+          source: 'Source: Case Investigation Record'
+        });
+      }
+    }
+  }
+
+  // 4. From relationships if needed
+  if (collected.length === 0 && Array.isArray(relationships)) {
+    for (const r of relationships) {
+      const rawDate = r.properties?.timestamp || r.properties?.date;
+      const parsed = parseDateAndTime(rawDate);
+      if (parsed) {
+        const srcId = r.source_entity_id || r.sourceId;
+        const tgtId = r.target_entity_id || r.targetId;
+        const srcName = entities.find(e => e._id === srcId || e.id === srcId)?.name || srcId || 'Entity';
+        const tgtName = entities.find(e => e._id === tgtId || e.id === tgtId)?.name || tgtId || 'Entity';
+        const relType = String(r.type || r.relationship_type || 'CONNECTED_WITH').replace(/_/g, ' ').toLowerCase();
+        const desc = r.properties?.description || `${srcName} ${relType} ${tgtName}.`;
+        const sourceStr = r.properties?.evidence || r.properties?.source || 'Communication Record';
+        collected.push({
+          date: parsed.date,
+          displayDate: formatDisplayDate(parsed.date),
+          time: formatDisplayTime(parsed.time),
+          sortKey: parsed.sortKey,
+          description: desc,
+          entities: [srcName, tgtName].filter(n => n && n !== 'Entity'),
+          source: sourceStr.startsWith('Source:') ? sourceStr : `Source: ${sourceStr}`
+        });
+      }
+    }
+  }
+
+  // Deduplicate and combine events describing the same event
+  const combinedMap = new Map<string, ChronologicalEvent>();
+  for (const ev of collected) {
+    const normDesc = ev.description.toLowerCase().replace(/[^a-z0-9]/g, ' ').split(/\s+/).filter(w => w.length > 3).slice(0, 5).sort().join(' ');
+    const key = `${ev.date}_${ev.time}_${normDesc}`;
+    if (!combinedMap.has(key)) {
+      combinedMap.set(key, { ...ev });
+    } else {
+      const existing = combinedMap.get(key)!;
+      if (ev.source && !existing.source?.includes(ev.source)) {
+        const cleanNew = ev.source.replace(/^Source:\s*/i, '');
+        existing.source = existing.source ? `${existing.source}, ${cleanNew}` : ev.source;
+      }
+      if (ev.entities && ev.entities.length > 0) {
+        const set = new Set([...(existing.entities || []), ...ev.entities]);
+        existing.entities = Array.from(set);
+      }
+    }
+  }
+
+  const sortedEvents = Array.from(combinedMap.values()).sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+
+  // Group by displayDate
+  const groupMap = new Map<string, DateGroup>();
+  for (const evt of sortedEvents) {
+    const gKey = evt.displayDate || 'DATE UNSPECIFIED';
+    if (!groupMap.has(gKey)) {
+      groupMap.set(gKey, {
+        date: evt.date,
+        displayDate: gKey,
+        events: []
+      });
+    }
+    groupMap.get(gKey)!.events.push(evt);
+  }
+
+  return Array.from(groupMap.values());
+}
+
+export default function CaseReportPDF({ caseData, entities, relationships, evidence, reportData, networkSnapshot }: Props) {
   const highRiskEntities = entities.filter(e => e.risk_score > 0.7);
   const locations = entities.filter(e => e.type === 'LOCATION');
   
   const ai = reportData?.ai_assessment;
   const hasAI = Boolean(ai && typeof ai === 'object');
+
+  const groupedChronologicalEvents = extractChronologicalEvents(reportData, entities, relationships, evidence, caseData);
+
+  const activeSnapshot = networkSnapshot || reportData?.network_snapshot || (typeof document !== 'undefined' ? generateNetworkReportSnapshot({ entities, relationships }) : null);
   
   return (
     <Document>
@@ -341,11 +540,68 @@ export default function CaseReportPDF({ caseData, entities, relationships, evide
           )}
         </View>
 
-        {/* CASE CHRONOLOGICAL NARRATIVE (Only included if generated by investigator) */}
-        {reportData?.ai_narrative && (
-          <View style={{ marginBottom: 10 }}>
-            <Text style={styles.sectionTitle}>Case Chronological Narrative</Text>
-            {renderCleanNarrative(reportData.ai_narrative)}
+        {/* CHRONOLOGICAL SEQUENCE OF EVENTS */}
+        <Text style={styles.sectionTitle}>CHRONOLOGICAL SEQUENCE OF EVENTS</Text>
+        {groupedChronologicalEvents.length === 0 ? (
+          <Text style={styles.text}>No chronological events recorded for this case.</Text>
+        ) : (
+          <View style={{ marginTop: 4, marginBottom: 10 }}>
+            {groupedChronologicalEvents.map((group, gIdx) => (
+              <View key={gIdx} style={{ marginBottom: 9 }} wrap={false}>
+                {/* DATE HEADER */}
+                <View style={{
+                  backgroundColor: '#f1f5f9',
+                  paddingVertical: 3,
+                  paddingHorizontal: 6,
+                  borderRadius: 2,
+                  marginBottom: 5,
+                  borderLeft: '3pt solid #2563eb'
+                }}>
+                  <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#0f172a', letterSpacing: 0.5 }}>
+                    {group.displayDate}
+                  </Text>
+                </View>
+
+                {/* EVENTS FOR THIS DATE */}
+                <View style={{ paddingLeft: 6, borderLeft: '1pt solid #cbd5e1', marginLeft: 4 }}>
+                  {group.events.map((evt, eIdx) => (
+                    <View key={eIdx} style={{ marginBottom: 6 }} wrap={false}>
+                      {/* TIME */}
+                      <Text style={{
+                        fontSize: 8,
+                        fontWeight: 'bold',
+                        color: evt.time.includes('Not specified') ? '#64748b' : '#2563eb',
+                        fontStyle: evt.time.includes('Not specified') ? 'italic' : 'normal',
+                        marginBottom: 1.5
+                      }}>
+                        {evt.time}
+                      </Text>
+
+                      {/* EVENT DESCRIPTION */}
+                      <Text style={{ fontSize: 8.5, color: '#1e293b', lineHeight: 1.25, marginBottom: 1.5 }}>
+                        {cleanPdfText(evt.description)}
+                      </Text>
+
+                      {/* RELEVANT ENTITIES */}
+                      {evt.entities && evt.entities.length > 0 && (
+                        <Text style={{ fontSize: 7.5, color: '#475569', marginBottom: 1 }}>
+                          <Text style={{ fontWeight: 'bold', color: '#334155' }}>Relevant Entities: </Text>
+                          {cleanPdfText(evt.entities.join(', '))}
+                        </Text>
+                      )}
+
+                      {/* SOURCE / EVIDENCE REFERENCE */}
+                      {evt.source && (
+                        <Text style={{ fontSize: 7.5, color: '#64748b', fontStyle: 'italic' }}>
+                          <Text style={{ fontWeight: 'bold', fontStyle: 'normal', color: '#475569' }}>Source: </Text>
+                          {cleanPdfText(evt.source)}
+                        </Text>
+                      )}
+                    </View>
+                  ))}
+                </View>
+              </View>
+            ))}
           </View>
         )}
         
@@ -376,8 +632,42 @@ export default function CaseReportPDF({ caseData, entities, relationships, evide
           </View>
         )}
 
-        {/* NETWORK / RELATIONSHIPS */}
+        {/* NETWORK ANALYSIS */}
         <Text style={styles.sectionTitle}>Network Analysis</Text>
+
+        {/* Network Visualization */}
+        <View style={{ marginTop: 4, marginBottom: 8 }}>
+          <Text style={{ fontSize: 9.5, fontWeight: 'bold', color: '#1e293b', marginBottom: 4 }}>
+            Network Visualization
+          </Text>
+          {activeSnapshot ? (
+            <View style={{ alignItems: 'center', marginBottom: 4 }} wrap={false}>
+              <Image
+                src={activeSnapshot}
+                style={{
+                  width: '100%',
+                  height: 240,
+                  objectFit: 'contain',
+                  borderRadius: 3,
+                  border: '0.5pt solid #cbd5e1'
+                }}
+              />
+              <Text style={{ fontSize: 7, color: '#64748b', fontStyle: 'italic', marginTop: 3 }}>
+                Figure 1: Entity relationship network derived from the active investigation case.
+              </Text>
+            </View>
+          ) : (
+            <Text style={{ fontSize: 8, fontStyle: 'italic', color: '#64748b', marginBottom: 6 }}>
+              No network visualization available. No entity relationships were identified in the current case.
+            </Text>
+          )}
+
+          {/* Network Statistics / Relationship Analysis */}
+          <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#1e293b', marginTop: 6, marginBottom: 2 }}>
+            Network Statistics & Relationship Analysis
+          </Text>
+        </View>
+
         {relationships.length === 0 ? (
           <Text style={styles.text}>No relationship data available for this case.</Text>
         ) : (

@@ -24,11 +24,31 @@ class ChatRequest(BaseModel):
 @router.post("/")
 async def chat_with_nexus(req: ChatRequest, db=Depends(get_database), current_user=Depends(get_current_user)):
     history_context = ""
+    history_list = []
     if req.history:
         history_context = "Previous Conversation History:\n"
-        for msg in req.history[-5:]: # Keep last 5 messages for context
+        for msg in req.history[-8:]: # Keep last 8 messages for context
             role = "User" if msg.sender == "user" else "AI"
             history_context += f"{role}: {msg.text}\n"
+            history_list.append({"sender": msg.sender, "text": msg.text})
             
-    response = await run_ai_investigator(req.query, req.case_id, db, current_user, history_context)
-    return response
+    try:
+        response = await run_ai_investigator(
+            req.query, 
+            req.case_id, 
+            db, 
+            current_user, 
+            history_context=history_context,
+            history_list=history_list
+        )
+        return response
+    except Exception as err:
+        import traceback
+        print(f"[NEXUS_CHAT_ERROR] Exception processing investigation query '{req.query}': {err}")
+        traceback.print_exc()
+        return {
+            "answer": "I couldn't retrieve the case data right now. Please try again.",
+            "actions": [],
+            "supporting_evidence": []
+        }
+

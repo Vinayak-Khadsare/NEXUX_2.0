@@ -1,12 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException
 from app.core.database import get_database
 from app.api.routes.auth import get_current_user
-from app.schemas.alert import AlertOut
+from app.schemas.alert import AlertOut, AlertResolveRequest, AlertReopenRequest
 from app.graph.graph_builder import build_graph
 from app.graph.centrality import calculate_centrality
 from bson import ObjectId
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 
 router = APIRouter()
 
@@ -35,12 +35,28 @@ async def calculate_case_risk(case_id: str, db=Depends(get_database), current_us
     alerts_created = 0
     for entity in entities:
         entity_id_str = str(entity["_id"])
+        properties = entity.get("properties", {}) or {}
+        
+        # Check if entity is cleared / innocent
+        is_cleared = (
+            properties.get("is_cleared") is True
+            or entity.get("disposition") in ["CLEARED", "INNOCENT"]
+            or properties.get("disposition") in ["INNOCENT", "CLEARED"]
+            or properties.get("clearance_status") == "FREE_TO_GO"
+        )
+        if is_cleared:
+            # Cleared entities must remain at 0.0 risk score and not generate new alerts
+            if entity.get("risk_score", 0.0) != 0.0:
+                await db["entities"].update_one(
+                    {"_id": entity["_id"]},
+                    {"$set": {"risk_score": 0.0, "updated_at": datetime.utcnow()}}
+                )
+            continue
         
         node_centrality = centrality.get(entity_id_str, {})
         degree = node_centrality.get("degree", 0.0)
         
         base_risk = 0.1
-        properties = entity.get("properties", {})
         if isinstance(properties, dict):
             if properties.get("suspicious") or properties.get("flagged") or properties.get("is_cooperative") == False:
                 base_risk += 0.4
@@ -81,6 +97,217 @@ async def calculate_case_risk(case_id: str, db=Depends(get_database), current_us
         "alerts_created": alerts_created
     }
 
+@router.post("/resolve")
+async def resolve_alert(
+    payload: AlertResolveRequest,
+    db=Depends(get_database),
+    current_user=Depends(get_current_user)
+):
+    case_id = payload.case_id
+    alert_id = payload.alert_id
+    entity_id = payload.entity_id
+    disposition = (payload.disposition or "INNOCENT").upper()
+    notes = payload.resolution_notes or "Entity cleared by investigator. Free to go."
+    user_email = current_user.get("email", "investigator")
+    now = datetime.utcnow()
+
+    # Look up entity if provided or via alert
+    entity = None
+    if entity_id:
+        try:
+            entity = await db["entities"].find_one({"_id": ObjectId(entity_id), "case_id": case_id})
+        except Exception:
+            entity = None
+
+    existing_alert = None
+    if alert_id and not str(alert_id).startswith("generated_"):
+        try:
+            existing_alert = await db["alerts"].find_one({"_id": ObjectId(alert_id)})
+            if existing_alert and not entity:
+                alt_ent_id = existing_alert.get("entity_id")
+                if alt_ent_id:
+                    entity = await db["entities"].find_one({"_id": ObjectId(alt_ent_id), "case_id": case_id})
+                    if not entity_id:
+                        entity_id = alt_ent_id
+        except Exception:
+            pass
+
+    # Clear Entity if requested and entity found
+    if entity and payload.clear_entity:
+        prev_risk = entity.get("risk_score", 0.0)
+        ent_props = entity.get("properties", {}) or {}
+        ent_props["is_cleared"] = True
+        ent_props["disposition"] = disposition
+        ent_props["clearance_status"] = "FREE_TO_GO" if disposition == "INNOCENT" else disposition
+        ent_props["resolution_notes"] = notes
+        ent_props["cleared_at"] = now.isoformat()
+        ent_props["cleared_by"] = user_email
+        if "previous_risk_score" not in ent_props or ent_props.get("previous_risk_score") == 0.0:
+            ent_props["previous_risk_score"] = prev_risk
+        ent_props["flagged"] = False
+        ent_props["suspicious"] = False
+
+        await db["entities"].update_one(
+            {"_id": entity["_id"]},
+            {
+                "$set": {
+                    "disposition": "CLEARED",
+                    "risk_score": 0.0,
+                    "properties": ent_props,
+                    "updated_at": now
+                }
+            }
+        )
+
+        # Mark any active alerts for this entity as RESOLVED
+        await db["alerts"].update_many(
+            {"case_id": case_id, "entity_id": str(entity["_id"]), "status": "ACTIVE"},
+            {
+                "$set": {
+                    "status": "RESOLVED",
+                    "disposition": disposition,
+                    "resolution_notes": notes,
+                    "resolved_by": user_email,
+                    "resolved_at": now
+                }
+            }
+        )
+
+    # Update or insert alert
+    if existing_alert:
+        await db["alerts"].update_one(
+            {"_id": existing_alert["_id"]},
+            {
+                "$set": {
+                    "status": "RESOLVED",
+                    "disposition": disposition,
+                    "resolution_notes": notes,
+                    "resolved_by": user_email,
+                    "resolved_at": now
+                }
+            }
+        )
+        resolved_id = str(existing_alert["_id"])
+    else:
+        ent_name = entity.get("name", "Unknown Entity") if entity else "Target"
+        alert_doc = {
+            "case_id": case_id,
+            "entity_id": str(entity["_id"]) if entity else entity_id,
+            "type": payload.type or ("CLEARED / INNOCENT" if disposition == "INNOCENT" else "RESOLVED_ALERT"),
+            "severity": "LOW",
+            "message": payload.message or f"Entity '{ent_name}' cleared ({disposition}): {notes}",
+            "status": "RESOLVED",
+            "disposition": disposition,
+            "resolution_notes": notes,
+            "resolved_by": user_email,
+            "resolved_at": now,
+            "created_at": now
+        }
+        res = await db["alerts"].insert_one(alert_doc)
+        resolved_id = str(res.inserted_id)
+
+    return {
+        "success": True,
+        "message": f"Entity resolved successfully as {disposition}.",
+        "alert_id": resolved_id,
+        "entity_id": str(entity["_id"]) if entity else entity_id,
+        "disposition": disposition
+    }
+
+@router.post("/reopen")
+async def reopen_alert(
+    payload: AlertReopenRequest,
+    db=Depends(get_database),
+    current_user=Depends(get_current_user)
+):
+    case_id = payload.case_id
+    alert_id = payload.alert_id
+    entity_id = payload.entity_id
+    now = datetime.utcnow()
+
+    # If alert_id starts with resolved_ent_, extract entity_id
+    if alert_id and str(alert_id).startswith("resolved_ent_") and not entity_id:
+        entity_id = str(alert_id).replace("resolved_ent_", "")
+
+    existing_alert = None
+    if alert_id and not str(alert_id).startswith("generated_") and not str(alert_id).startswith("resolved_ent_"):
+        try:
+            existing_alert = await db["alerts"].find_one({"_id": ObjectId(alert_id)})
+            if existing_alert and not entity_id and existing_alert.get("entity_id"):
+                entity_id = existing_alert.get("entity_id")
+        except Exception:
+            pass
+
+    if entity_id:
+        try:
+            entity = await db["entities"].find_one({"_id": ObjectId(entity_id), "case_id": case_id})
+            if entity:
+                ent_props = entity.get("properties", {}) or {}
+                restored_risk = ent_props.get("previous_risk_score", 0.70)
+                if not restored_risk or restored_risk <= 0.0:
+                    restored_risk = 0.75
+
+                ent_props["is_cleared"] = False
+                ent_props["disposition"] = "ACTIVE"
+                ent_props["clearance_status"] = "ACTIVE"
+                ent_props.pop("resolution_notes", None)
+                ent_props.pop("cleared_at", None)
+                ent_props.pop("cleared_by", None)
+                ent_props["reopened_at"] = now.isoformat()
+                ent_props["reopened_by"] = current_user.get("email", "investigator")
+
+                await db["entities"].update_one(
+                    {"_id": entity["_id"]},
+                    {
+                        "$set": {
+                            "disposition": "ACTIVE",
+                            "risk_score": restored_risk,
+                            "properties": ent_props,
+                            "updated_at": now
+                        }
+                    }
+                )
+
+                # Update ALL alerts for this entity in db["alerts"] to ACTIVE
+                await db["alerts"].update_many(
+                    {"case_id": case_id, "entity_id": str(entity["_id"])},
+                    {
+                        "$set": {
+                            "status": "ACTIVE",
+                            "disposition": "ACTIVE",
+                            "reopened_at": now,
+                            "updated_at": now
+                        },
+                        "$unset": {
+                            "resolution_notes": "",
+                            "resolved_at": "",
+                            "resolved_by": ""
+                        }
+                    }
+                )
+        except Exception as e:
+            print("Error restoring entity:", e)
+
+    if existing_alert:
+        await db["alerts"].update_one(
+            {"_id": existing_alert["_id"]},
+            {
+                "$set": {
+                    "status": "ACTIVE",
+                    "disposition": "ACTIVE",
+                    "reopened_at": now,
+                    "updated_at": now
+                },
+                "$unset": {
+                    "resolution_notes": "",
+                    "resolved_at": "",
+                    "resolved_by": ""
+                }
+            }
+        )
+
+    return {"success": True, "message": "Alert and entity restored to ACTIVE investigation status."}
+
 @router.put("/{alert_id}/status")
 async def update_alert_status(
     alert_id: str,
@@ -97,8 +324,9 @@ async def update_alert_status(
     if not existing:
         raise HTTPException(status_code=404, detail="Alert not found")
         
-    await db["alerts"].update_one({"_id": oid}, {"$set": {"status": status.upper()}})
+    await db["alerts"].update_one({"_id": oid}, {"$set": {"status": status.upper(), "updated_at": datetime.utcnow()}})
     return {"message": f"Alert status updated to {status.upper()}"}
+
 
 @router.get("/anomalies/{case_id}")
 async def get_anomalies(case_id: str, db=Depends(get_database), current_user=Depends(get_current_user)):
@@ -169,6 +397,9 @@ async def get_anomalies(case_id: str, db=Depends(get_database), current_user=Dep
                 })
                 
     for ent in entities:
+        props = ent.get("properties", {}) or {}
+        if props.get("is_cleared") or ent.get("disposition") in ["CLEARED", "INNOCENT"] or props.get("clearance_status") == "FREE_TO_GO":
+            continue
         risk = ent.get("risk_score", 0.0)
         if risk > 0.8:
             anomalies.append({

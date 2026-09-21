@@ -1,975 +1,1461 @@
 import re
-from typing import Dict, Any, List
+import json
+from datetime import datetime
+from typing import Dict, Any, List, Optional, Tuple
+import networkx as nx
+from bson import ObjectId
+
 from app.graph.graph_builder import build_graph
 from app.graph.path_finder import find_shortest_path
 from app.services.rag_service import query_case_context
 
-import json
+# ==============================================================================
+# 1. HONORIFICS, NORMALIZATION & UTILITIES
+# ==============================================================================
 
-async def classify_intent(query: str, history_context: str) -> dict:
-    intent_system_prompt = """You are NEXUS INTENT CLASSIFIER.
-Analyze the user's query and classify it into EXACTLY ONE of these intents:
-- GREETING
-- CASE_FACT
-- RAG_QUERY
-- PATH_TRACING
-- RISK_ANALYSIS
-- GRAPH_ANALYSIS
-- TIMELINE_QUERY
-- GEOGRAPHY_QUERY
-- EVIDENCE_GAP
-- GENERAL_KNOWLEDGE
-- CURRENT_DATE_TIME
-- SYSTEM_HELP
-- OUT_OF_SCOPE
-- CLARIFICATION_REQUIRED
-- INSUFFICIENT_CASE_DATA
-- UNKNOWN
+HONORIFICS = [
+    r"\bmr\.?\b", r"\bmrs\.?\b", r"\bms\.?\b", r"\bdr\.?\b", r"\bprof\.?\b",
+    r"\bsh\.?\b", r"\bshri\.?\b", r"\bsmt\.?\b",
+    r"\bofficer\b", r"\binspector\b", r"\bconstable\b", r"\basi\b", r"\bct\.?\b",
+    r"\bagent\b", r"\bdetective\b"
+]
 
-Respond in strict JSON format:
-{
-  "intent": "INTENT_NAME",
-  "entities": ["extracted", "entity", "names"],
-  "requires_graph": true
-}
-Do not include any other text or markdown, only the JSON object.
-"""
+STOP_PHRASES = [
+    r"^who is\s+", r"^who are\s+", r"^tell me about\s+", r"^what do you know about\s+",
+    r"^who is\s+", r"^what is\s+", r"^details (?:of|for|on)\s+", r"^profile (?:of|for|on)\s+",
+    r"^information (?:of|for|on|about)\s+", r"^search for\s+", r"^lookup\s+",
+    r"^who does\s+", r"^how is\s+", r"^connection between\s+", r"^path between\s+",
+    r"^why is\s+", r"^explain risk (?:of|for)\s+", r"^risk of\s+",
+    r"^what evidence mentions\s+", r"^evidence (?:for|linking|linked to|on)\s+",
+    r"^what happened to\s+", r"^timeline of\s+", r"^where has\s+",
+    r"^locations? (?:of|for|associated with)\s+", r"^where was\s+"
+]
+
+def clean_query_text(text: str) -> str:
+    """Removes honorifics, punctuation, and extra whitespace."""
+    s = text.lower()
+    for h in HONORIFICS:
+        s = re.sub(h, "", s, flags=re.IGNORECASE)
+    s = re.sub(r"[^\w\s\-+@/]", " ", s)
+    s = re.sub(r"\s+", " ", s).strip()
+    return s
+
+def extract_target_name(query: str) -> str:
+    """Strips common questioning prefixes to isolate the subject/entity query."""
+    q = query.strip()
+    # Remove trailing question marks, periods, exclamation marks
+    q = re.sub(r"[\?\.\!]+$", "", q).strip()
     
-    user_prompt = f"Conversation History:\n{history_context}\n\nQuery to classify: {query}"
-    
-    try:
-        res = await call_hf_api(intent_system_prompt, user_prompt, format="json")
-        if not res:
-            return {"intent": "UNKNOWN", "entities": [], "requires_graph": False}
-        res = res.strip()
-        if res.startswith("```json"):
-            res = res[7:-3].strip()
-        elif res.startswith("```"):
-            res = res[3:-3].strip()
+    # Strip question prefixes
+    for p in STOP_PHRASES:
+        match = re.search(p, q, flags=re.IGNORECASE)
+        if match:
+            q = q[match.end():].strip()
+            break
             
-        data = json.loads(res)
-        valid_intents = [
-            "GREETING", "CASE_FACT", "RAG_QUERY", "PATH_TRACING", "RISK_ANALYSIS",
-            "GRAPH_ANALYSIS", "TIMELINE_QUERY", "GEOGRAPHY_QUERY", "EVIDENCE_GAP",
-            "GENERAL_KNOWLEDGE", "CURRENT_DATE_TIME", "SYSTEM_HELP", "OUT_OF_SCOPE",
-            "CLARIFICATION_REQUIRED", "INSUFFICIENT_CASE_DATA", "UNKNOWN"
-        ]
-        if data.get("intent") not in valid_intents:
-            data["intent"] = "UNKNOWN"
-        return data
-    except Exception as e:
-        print(f"Intent classification failed: {e}")
-        return {"intent": "UNKNOWN", "entities": [], "requires_graph": False}
+    # Clean out "in this case", "in the active case", "in the case"
+    q = re.sub(r"\s+in\s+(?:this|the|our)\s+case\b", "", q, flags=re.IGNORECASE)
+    q = re.sub(r"\s+in\s+the\s+investigation\b", "", q, flags=re.IGNORECASE)
 
-def validate_classifier_entities(entities: Any) -> list:
-    if not isinstance(entities, list):
-        return []
-    valid = []
-    for e in entities:
-        if isinstance(e, str):
-            clean = e.strip()
-            if clean and clean.lower() not in [v.lower() for v in valid]:
-                valid.append(clean)
-    return valid
+    # Strip date expressions like "on 17 august", "on 12 aug 2026", "on 12-08-2026"
+    q = re.sub(r"\s+on\s+\d{1,2}(?:st|nd|rd|th)?\s+[a-zA-Z]+(?:\s+\d{2,4})?", "", q, flags=re.IGNORECASE)
+    q = re.sub(r"\s+on\s+[a-zA-Z]+\s+\d{1,2}(?:st|nd|rd|th)?(?:\s+\d{2,4})?", "", q, flags=re.IGNORECASE)
+    q = re.sub(r"\s+on\s+\d{4}-\d{2}-\d{2}", "", q, flags=re.IGNORECASE)
+    q = re.sub(r"\s+on\s+\d{1,2}[/-]\d{1,2}[/-]\d{2,4}", "", q, flags=re.IGNORECASE)
 
-async def run_ai_investigator(query: str, case_id: str, db, current_user, history_context: str = "") -> Dict[str, Any]:
+
+    # Clean honorifics
+    for h in HONORIFICS:
+        q = re.sub(h, "", q, flags=re.IGNORECASE).strip()
+
+    # Strip trailing question words
+    TRAILING_PATTERNS = [
+        r"\s+been$", r"\s+gone$", r"\s+visited$", r"\s+seen$",
+        r"\s+high risk$", r"\s+marked as high risk$", r"\s+risk score$",
+        r"\s+communicate with$", r"\s+communicates with$", r"\s+talk to$", r"\s+talks to$",
+        r"\s+connected to$", r"\s+linked to$", r"\s+related to$", r"\s+meet$", r"\s+meets$"
+    ]
+    for tp in TRAILING_PATTERNS:
+        q = re.sub(tp, "", q, flags=re.IGNORECASE).strip()
+        
+    return clean_query_text(q)
+
+
+def get_risk_level(score: float) -> str:
+    """Converts a numerical risk score into a standardized risk level."""
+    if score >= 0.7:
+        return "HIGH"
+    elif score >= 0.4:
+        return "MEDIUM"
+    return "LOW"
+
+def format_entity_link(entity: Dict[str, Any]) -> str:
+    """Creates an interactive markdown entity link with the entity ID."""
+    name = entity.get("name", "Unknown Entity")
+    ent_id = str(entity.get("_id", entity.get("id", "")))
+    return f"[{name}](entity:{ent_id})"
+
+# ==============================================================================
+# 2. CHAT MEMORY & PRONOUN RESOLUTION
+# ==============================================================================
+
+PRONOUN_PATTERNS = [
+    r"\bhe\b", r"\bhim\b", r"\bhis\b",
+    r"\bshe\b", r"\bher\b", r"\bhers\b",
+    r"\bthey\b", r"\bthem\b", r"\btheir\b",
+    r"\bthis person\b", r"\bthis suspect\b", r"\bthis entity\b",
+    r"\bthis organization\b", r"\bthat person\b", r"\bthe suspect\b"
+]
+
+def resolve_subject_from_history(query: str, history: List[Dict[str, str]], entities: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
     """
-    Orchestrates the grounded AI investigation. Intercepts intent, retrieves MongoDB/NetworkX facts,
-    and queries local AI (or falls back to rule-based grounding) to generate factual reports.
+    Inspects previous conversation history working backwards to resolve pronouns
+    or context carryover to the most recently discussed entity in the active case.
     """
-    # Helper to clean queries
-    query_clean = re.sub(r'[^\w\s]', '', query.lower()).strip()
     query_lower = query.lower()
-
-    # --- 12 INTENT DETECTION ROUTERS ---
+    has_pronoun = any(re.search(p, query_lower) for p in PRONOUN_PATTERNS)
     
-    # 0. DATE_TIME (Deterministic Phase 1)
-    date_patterns = [
-        r"^what day is today\??$",
-        r"^what is today's date\??$",
-        r"^what is the date\??$",
-        r"^what time is it\??$",
-        r"^current date\??$",
-        r"^today's date\??$"
-    ]
-    if any(re.match(p, query_lower) for p in date_patterns):
-        from datetime import datetime
-        try:
-            from tzlocal import get_localzone
-            now_local = datetime.now(get_localzone())
-            tz_str = str(get_localzone())
-        except:
-            now_local = datetime.now().astimezone()
-            tz_str = str(now_local.tzinfo)
-            
-        date_str = now_local.strftime("%Y-%m-%d")
-        time_str = now_local.strftime("%H:%M:%S")
-        day_str = now_local.strftime("%A")
-        
-        return {
-            "answer": f"Today is {day_str}, {date_str}. The current time is {time_str} ({tz_str}).",
-            "actions": [],
-            "supporting_evidence": []
-        }
-
-
-    # Phase 2: LLM Intent Classifier
-    classification = {"intent": "UNKNOWN", "entities": [], "requires_graph": False}
-    try:
-        classification = await classify_intent(query, history_context)
-    except Exception as e:
-        print(f"Error calling classify_intent: {e}")
-        
-    intent = classification.get("intent", "UNKNOWN")
-    classifier_entities = validate_classifier_entities(classification.get("entities", []))
-
-    # If LLM detects OUT_OF_SCOPE or GREETING directly
-    if intent == "OUT_OF_SCOPE":
-        return {
-            "answer": "I’m NEXUS AI, an investigation intelligence assistant. I can help you analyze cases, evidence, entities, relationships, and network connections, but that request is outside my area of expertise.",
-            "actions": [],
-            "supporting_evidence": []
-        }
-    elif intent == "GREETING":
-        system_persona = "You are NEXUS AI. Respond naturally to this greeting in a concise, professional tone."
-        ans = await call_hf_api(system_persona, f"Query: {query}")
-        return {
-            "answer": ans or "Hello! I am NEXUS AI. How can I assist with your investigation today?",
-            "actions": [],
-            "supporting_evidence": []
-        }
-
-    # 1. OUT_OF_SCOPE (Regex Fallback)
-    out_of_scope_patterns = [
-        r"\b(?:weather|sports|celebrity|gossip|homework|math|mathematics|stock|stocks|movie|recipe|coding)\b"
-    ]
-    if any(re.search(p, query_lower) for p in out_of_scope_patterns):
-        return {
-            "answer": "I’m NEXUS AI, an investigation intelligence assistant. I can help you analyze cases, evidence, entities, relationships, and network connections, but that request is outside my area of expertise.",
-            "actions": [],
-            "supporting_evidence": []
-        }
-
-    # 2. GENERAL_CONVERSATION (Regex Fallback)
-    conversational_patterns = [
-        r"^(hi|hello|hey|greetings)(?:\s+nexus)?$",
-        r"^(good morning|good afternoon|good evening)$",
-        r"^how are you(?:\s+doing)?$",
-        r"^(who are you|what are you)$",
-        r"^(what can you do|help(?: me)?|how can you help)$",
-        r"^(thanks|thank you)$"
-    ]
-    # Do not return immediately for conversational logic if we want AI to handle it, but wait, the instructions said:
-    # "regex may be used only for simple routing such as greetings or obvious out-of-scope"
-    # Wait, the prompt says "The chatbot must return meaningful responses for 'hi', 'who are you', 'what can you do'."
-    # The existing code did handle this, but let's just make it pass through to the LLM or handle it directly.
-    # Actually, the user says "You can naturally respond to greetings and simple conversation such as: hi, hello..."
-    # "Do not use regex as the primary intelligence mechanism for normal case questions. Regex may be used only for simple routing such as greetings or obvious out-of-scope categories. Investigation questions should still reach the AI/RAG pipeline."
-    # Let's remove the regex handling for greetings so the LLM handles it natively, or just keep it simple. Let's remove it and let the LLM handle greetings natively since the new prompt includes it!
-    # Or wait, if we pass greetings to the LLM, it's slower. Let's remove this block and let the LLM handle it, as the system prompt explicitly says "GENERAL CONVERSATION: You can naturally respond to greetings..."
-
-    # 3. APP_STATISTICS & CASE_LISTING
-    app_stat_patterns = [
-        r"how many cases", r"how many investigations", r"show my cases", r"list cases", 
-        r"what cases do i have", r"show open investigations", r"summary of all my investigations",
-        r"what cases are currently open", r"what cases are high priority"
-    ]
-    if any(p in query_lower for p in app_stat_patterns):
-        # Fetch global case stats (unscoped based on existing DB logic which didn't scope cases)
-        all_cases = await db["cases"].find().to_list(None)
-        open_cases = sum(1 for c in all_cases if c.get("status") == "OPEN")
-        closed_cases = sum(1 for c in all_cases if c.get("status") == "CLOSED")
-        high_priority = sum(1 for c in all_cases if c.get("priority") == "HIGH")
-        
-        case_names = [c.get("name", "Unnamed") for c in all_cases[:5]] # sample up to 5
-        
-        fallback_msg = f"You currently have {len(all_cases)} investigation cases ({open_cases} open, {closed_cases} closed). There are {high_priority} high priority cases."
-        if case_names:
-            fallback_msg += f" Some of your cases include: {', '.join(case_names)}."
-            
-        system_persona = "You are NEXUS AI, an investigation intelligence assistant. Answer naturally based on the provided facts."
-        user_prompt = f"Facts: {fallback_msg}\n\nQuestion: {query}"
-        answer = await call_hf_api(system_persona, user_prompt)
-        if not answer:
-            answer = fallback_msg
-            
-        return {
-            "answer": answer,
-            "actions": [],
-            "supporting_evidence": ["Global MongoDB Cases queried."]
-        }
-
-    # If active case questions, we must ensure case_id is valid
-    if case_id != "all":
-        # Fetch Entities and Relationships for this case
-        entities = await db["entities"].find({"case_id": case_id}).to_list(None)
-        relationships = await db["relationships"].find({"case_id": case_id}).to_list(None)
-    else:
-        entities = await db["entities"].find({}).to_list(None)
-        relationships = await db["relationships"].find({}).to_list(None)
-        
-    if not entities: entities = []
-    if not relationships: relationships = []
+    # Also check if it's a direct contextual follow-up like "What about connections?"
+    is_follow_up = has_pronoun or any(query_lower.startswith(w) for w in [
+        "what about", "and his", "and her", "and their", "his connections", "her connections",
+        "who does he", "who does she", "where did he", "where did she", "why is he", "why is she",
+        "what evidence supports that", "show timeline", "what about connections"
+    ])
     
-    # 4. ACTIVE_CASE_INFO
-    active_case_patterns = [
-        r"what is my active case", r"what case am i working on", r"what is this case about",
-        r"summarize this investigation", r"what is the case status", r"summarize this case"
-    ]
-    if any(p in query_lower for p in active_case_patterns):
-        if case_id == "all":
-            return {
-                "answer": "You don't currently have an active case selected. Please select a case before asking for case-specific analysis.",
-                "actions": [],
-                "supporting_evidence": []
-            }
-            
-        active_case = await db["cases"].find_one({"_id": case_id}) if len(case_id) < 24 else None
-        # the case_id in UI might be the string ObjectId. We can fetch name if we parse it, but we also can just use entities/relationships
-        from bson import ObjectId
-        case_doc = None
-        try:
-            case_doc = await db["cases"].find_one({"_id": ObjectId(case_id)})
-        except:
-            pass
-            
-        case_name = case_doc.get("name", case_id) if case_doc else case_id
-        case_status = case_doc.get("status", "Unknown") if case_doc else "Unknown"
-        case_desc = case_doc.get("description", "No description provided.") if case_doc else ""
-        
-        fallback_msg = f"Your active case is '{case_name}' (Status: {case_status}). {case_desc} This investigation contains {len(entities)} entities and {len(relationships)} relationships."
-        
-        system_persona = "You are NEXUS AI, an investigation intelligence assistant. Summarize the active case context for the user."
-        user_prompt = f"Facts: {fallback_msg}\n\nQuestion: {query}"
-        answer = await call_hf_api(system_persona, user_prompt)
-        if not answer:
-            answer = fallback_msg
-            
-        return {
-            "answer": answer,
-            "actions": [],
-            "supporting_evidence": [f"Case '{case_name}' metadata retrieved."]
-        }
+    if not is_follow_up and not has_pronoun:
+        return None
 
-    # 4b. CASE STORY & CHRONOLOGICAL NARRATIVE GENERATION
-    narrative_patterns = [
-        r"chronological narrative",
-        r"case story",
-        r"story of this case",
-        r"narrative.*case",
-        r"generate.*story",
-        r"generate.*narrative",
-        r"tell.*story",
-        r"what happened in this case",
-        r"sequence of events",
-        r"timeline.*narrative",
-        r"reconstruct the events",
-        r"reconstruct.*case",
-        r"chronological.*events",
-    ]
-    is_narrative_query = any(re.search(p, query_lower) for p in narrative_patterns) or (
-        intent in ["TIMELINE_QUERY", "CASE_FACT"] and any(w in query_lower for w in ["narrative", "story", "chronological", "events"])
-    )
-    if is_narrative_query and case_id != "all":
-        from bson import ObjectId
-        case_doc = None
-        try:
-            case_doc = await db["cases"].find_one({"_id": ObjectId(case_id)})
-        except Exception:
-            pass
-        if not case_doc:
-            case_doc = await db["cases"].find_one({"caseId": case_id})
-
-        case_name = case_doc.get("name", case_doc.get("title", "Active Case")) if case_doc else "Active Case"
-        case_desc = case_doc.get("description", "") if case_doc else ""
-        case_status = case_doc.get("status", "OPEN") if case_doc else "OPEN"
-
-        # Build entity lookup map
-        entity_map = {str(e["_id"]): e for e in entities}
-
-        # Collect and chronologically sort events from relationships and timeline
-        chronological_events = []
-        for r in relationships:
-            props = r.get("properties") or {}
-            dt_raw = props.get("date") or props.get("timestamp") or r.get("created_at")
-            if dt_raw:
-                src_name = entity_map.get(str(r.get("source_entity_id")), {}).get("name", "Unknown Entity")
-                tgt_name = entity_map.get(str(r.get("target_entity_id")), {}).get("name", "Unknown Entity")
-                rel_type = r.get("type") or r.get("relation") or "LINKED"
-                date_str = str(dt_raw)[:10] if dt_raw else "Recorded Date"
-                chronological_events.append({
-                    "raw_date": str(dt_raw),
-                    "date": date_str,
-                    "source": src_name,
-                    "target": tgt_name,
-                    "type": rel_type,
-                    "summary": f"[{date_str}] {src_name} --({rel_type})--> {tgt_name}"
-                })
-
-        # Sort chronologically (earliest to latest)
-        chronological_events.sort(key=lambda x: x["raw_date"])
-
-        # Fetch evidence snippets
-        evidence_snippets = []
-        try:
-            ev_docs = await db["evidence"].find({"$or": [{"case_id": case_id}, {"caseId": case_id}]}).limit(5).to_list(None)
-            for ev in ev_docs:
-                txt = (ev.get("extracted_text") or ev.get("summary") or "").strip()
-                if txt:
-                    evidence_snippets.append(f"- {ev.get('title', 'Evidence')}: {txt[:250]}...")
-        except Exception as e:
-            print(f"Notice fetching evidence snippets: {e}")
-
-        events_text = "\n".join([e["summary"] for e in chronological_events[:35]])
-        if len(chronological_events) > 35:
-            events_text += f"\n...and {len(chronological_events) - 35} more sequential events."
-
-        evidence_text = "\n".join(evidence_snippets) if evidence_snippets else "Standard case logs and communication transcripts."
-
-        system_persona = (
-            "You are NEXUS AI, an elite Senior Criminal & Intelligence Investigative Analyst.\n"
-            "Synthesize the provided chronological timeline of events, entity relationships, "
-            "and investigative evidence into a comprehensive, cohesive, professional chronological narrative of the case.\n\n"
-            "STRUCTURE YOUR REPORT CLEARLY:\n"
-            "1. Executive Summary\n"
-            "A concise briefing of the overall incident, prime suspects, and scope.\n\n"
-            "2. Chronological Sequence of Events\n"
-            "A detailed narrative timeline walking through what transpired step-by-step from earliest to latest recorded interactions, communications, movements, and transactions.\n\n"
-            "3. Key Entities & Network Dynamics\n"
-            "Summary of central actors, organizations, vehicles/locations, and how they connect.\n\n"
-            "4. Investigative Findings & Assessment\n"
-            "Critical nexus points, high-risk anomalies, and actionable next steps.\n\n"
-            "Conclusion\n"
-            "Brief final investigative synthesis.\n\n"
-            "STRICT FORMATTING RULES:\n"
-            "- Do NOT use markdown asterisks (**) anywhere. Never use ** for bold text.\n"
-            "- Do NOT use hashtags (###) for headings; use plain title lines.\n"
-            "- Do NOT use the rupee symbol (₹); write 'INR ' instead.\n"
-            "- Tone: Authoritative, objective, structured, and strictly grounded in the provided facts."
-        )
-
-        user_prompt = (
-            f"Case: {case_name} (Status: {case_status})\n"
-            f"Case Background: {case_desc}\n\n"
-            f"Chronological Event Timeline ({len(chronological_events)} events):\n{events_text}\n\n"
-            f"Key Evidence Records:\n{evidence_text}\n\n"
-            f"User Request: {query}"
-        )
-
-        answer = await call_hf_api(system_persona, user_prompt)
-
-        # Resilient fallback if local LLM is slow or returns minimal text
-        if not answer or len(answer.strip()) < 50:
-            answer = generate_chronological_narrative_fallback(case_name, case_desc, chronological_events, entities, relationships)
-
-        # Sanitize narrative: remove any markdown stars, hashtags, backticks, and fix currency
-        clean_narrative = (
-            answer
-            .replace("**", "")
-            .replace("₹", "INR ")
-            .replace("`", "")
-        )
-        clean_narrative = re.sub(r"^#+\s*", "", clean_narrative, flags=re.MULTILINE).strip()
-
-        # Persist the generated AI narrative to the case in MongoDB so it is added to the final report
-        try:
-            from bson import ObjectId
-            from datetime import datetime
-            query_filter = {"$or": [{"_id": ObjectId(case_id)}, {"caseId": case_id}]} if ObjectId.is_valid(case_id) else {"$or": [{"_id": case_id}, {"caseId": case_id}]}
-            await db["cases"].update_one(
-                query_filter,
-                {"$set": {"ai_narrative": clean_narrative, "narrative_generated_at": datetime.utcnow()}}
-            )
-        except Exception as e:
-            print(f"Notice persisting ai_narrative to case: {e}")
-
-        return {
-            "answer": clean_narrative,
-            "actions": [],
-            "supporting_evidence": [f"Synthesized {len(chronological_events)} chronological events and {len(entities)} entities."]
-        }
-
-
-        
-    # 5. APP_STATISTICS (Case scoped)
-    case_stats_patterns = [
-        r"how many entities", r"how many relationships", r"how much evidence", r"entity types", r"who are the investigators"
-    ]
-    if any(p in query_lower for p in case_stats_patterns):
-        evidence_count = await db["evidence"].count_documents({"case_id": case_id} if case_id != "all" else {})
-        
-        ent_types = {}
-        for e in entities:
-            t = e.get("type", "UNKNOWN")
-            ent_types[t] = ent_types.get(t, 0) + 1
-            
-        type_str = ", ".join([f"{count} {t.lower()}s" for t, count in ent_types.items()])
-        
-        fallback_msg = f"This investigation currently contains {len(entities)} entities, {len(relationships)} relationships, and {evidence_count} evidence records."
-        if type_str:
-            fallback_msg += f" Entity breakdown: {type_str}."
-            
-        system_persona = "You are NEXUS AI, an investigation intelligence assistant. Answer naturally based on facts."
-        user_prompt = f"Facts: {fallback_msg}\n\nQuestion: {query}"
-        answer = await call_hf_api(system_persona, user_prompt)
-        if not answer:
-            answer = fallback_msg
-            
-        return {
-            "answer": answer,
-            "actions": [],
-            "supporting_evidence": ["Database aggregation counts retrieved."]
-        }
-
-    # Deduplication block for Graph logic
-    unique_entities = {}
-    entity_id_map = {}
-    if case_id == "all":
+    # Search backward in history messages
+    for msg in reversed(history):
+        text = msg.get("text", "")
+        # Check against all entities in active case
         for ent in entities:
-            ent_id = str(ent["_id"])
-            key = (ent.get("type", "PERSON").upper(), ent.get("name", "").strip().lower())
-            if key not in unique_entities:
-                canonical_id = ent_id
-                ent_copy = dict(ent)
-                ent_copy["_id"] = canonical_id
-                unique_entities[key] = ent_copy
-                entity_id_map[ent_id] = canonical_id
-            else:
-                canonical_id = unique_entities[key]["_id"]
-                entity_id_map[ent_id] = canonical_id
+            ent_name = ent.get("name", "")
+            if not ent_name or len(ent_name) < 3:
+                continue
+            # Check if entity was mentioned in previous turn
+            if ent_name.lower() in text.lower():
+                return ent
+            # Check entity id/code
+            code = ent.get("properties", {}).get("entity_id") or ent.get("properties", {}).get("Entity ID")
+            if code and str(code).lower() in text.lower():
+                return ent
 
-    # 6. ENTITY_QUERY & RELATIONSHIP_QUERY (General check before path tracer)
-    # Check if there is a pronoun in history (FOLLOW_UP_CONTEXT)
-    pronouns = [r"\bhe\b", r"\bshe\b", r"\bthey\b", r"\bhim\b", r"\bher\b", r"\bit\b", r"\bthis\b"]
-    is_follow_up = any(re.search(p, query_lower) for p in pronouns)
-    
-    # Existing PATH_TRACING combined with Phase 3.5 Intent entities
-    path_match = re.search(r"(?:connection between|path between|link between|relationship between)\s+([a-zA-Z\s]+)\s+and\s+([a-zA-Z\s\?]+)", query_lower)
-    if not path_match:
-        path_match = re.search(r"(?:how is\s+)?([a-zA-Z\s]+)\s+(?:connected to|related to|linked to)\s+([a-zA-Z\s\?]+)", query_lower)
-        
-    is_path_tracing = (intent == "PATH_TRACING" and len(classifier_entities) >= 2) or path_match
+    return None
 
-    if is_path_tracing:
-        if intent == "PATH_TRACING" and len(classifier_entities) > 2:
-            return {
-                "answer": "The path tracing feature currently only supports analyzing connections between two specific entities at a time.",
-                "actions": [],
-                "supporting_evidence": []
-            }
-            
-        ent1 = None
-        ent2 = None
-        
-        if intent == "PATH_TRACING" and len(classifier_entities) == 2:
-            n1 = classifier_entities[0].lower()
-            n2 = classifier_entities[1].lower()
-            ent1 = next((e for e in entities if n1 in e["name"].lower()), None)
-            ent2 = next((e for e in entities if n2 in e["name"].lower()), None)
-            
-        if (not ent1 or not ent2) and path_match:
-            name1 = path_match.group(1).strip().replace("?", "")
-            name2 = path_match.group(2).strip().replace("?", "")
-            ent1 = next((e for e in entities if name1 in e["name"].lower()), None)
-            ent2 = next((e for e in entities if name2 in e["name"].lower()), None)
-        
-        if not ent1 or not ent2:
-            if not is_follow_up:
-                return {
-                    "answer": "There is insufficient evidence in the current case data to establish a relationship.",
-                    "actions": [],
-                    "supporting_evidence": []
-                }
-        else:
-            if case_id == "all":
-                import networkx as nx
-                G = nx.Graph()
-                for ent in unique_entities.values():
-                    G.add_node(ent["_id"], type=ent.get("type"), name=ent.get("name"), risk_score=ent.get("risk_score", 0))
-                for rel in relationships:
-                    src = entity_id_map.get(str(rel.get("source_entity_id")))
-                    tgt = entity_id_map.get(str(rel.get("target_entity_id")))
-                    if src and tgt and src != tgt:
-                        G.add_edge(src, tgt, type=rel.get("type"))
-                
-                start_id = entity_id_map.get(str(ent1["_id"]), str(ent1["_id"]))
-                target_id = entity_id_map.get(str(ent2["_id"]), str(ent2["_id"]))
-                path = find_shortest_path(G, start_id, target_id)
-            else:
-                G = build_graph(entities, relationships)
-                start_id = str(ent1["_id"])
-                target_id = str(ent2["_id"])
-                path = find_shortest_path(G, start_id, target_id)
-            
-            if not path:
-                return {
-                    "answer": f"No direct relationship was found between {ent1['name']} and {ent2['name']} in the current case data.",
-                    "actions": [],
-                    "supporting_evidence": []
-                }
-                
-            chain = []
-            entity_map = {str(e["_id"]): e for e in unique_entities.values()} if case_id == "all" else {str(e["_id"]): e for e in entities}
-            for i, node_id in enumerate(path):
-                curr_ent = entity_map.get(node_id)
-                if curr_ent:
-                    chain.append(curr_ent["name"])
-                    
-            path_str = " -> ".join(chain)
-            distance = len(chain) - 1
-            
-            ent1_degree = sum(1 for r in relationships if str(r.get("source_entity_id")) == start_id or str(r.get("target_entity_id")) == start_id)
-            ent2_degree = sum(1 for r in relationships if str(r.get("source_entity_id")) == target_id or str(r.get("target_entity_id")) == target_id)
-            
-            grounding_context = (
-                f"GRAPH FACTS:\n"
-                f"- {ent1['name']} (Node Degree: {ent1_degree})\n"
-                f"- {ent2['name']} (Node Degree: {ent2_degree})\n\n"
-                f"SHORTEST PATH:\n"
-                f"{path_str}\n\n"
-                f"Distance: {distance}"
-            )
-            
-            system_persona = "You are NEXUS AI, an investigation intelligence assistant. Explain the connection path between the suspects clearly using the provided graph facts. Do not invent any additional edges."
-            user_prompt = f"Conversation History:\n{history_context}\n\nFacts:\n{grounding_context}\n\nQuestion: {query}"
-            answer = await call_hf_api(system_persona, user_prompt)
-            if not answer:
-                answer = f"The connection path between {ent1['name']} and {ent2['name']} has been traced. They are linked via: {path_str} (Distance: {distance})."
-                
-            return {
-                "answer": answer,
-                "actions": [{"type": "TRACE_PATH", "source": start_id, "target": target_id, "scope": case_id}],
-                "supporting_evidence": [path_str]
-            }
+# ==============================================================================
+# 3. ENTITY FUZZY SEARCH, ALIASES & DISAMBIGUATION
+# ==============================================================================
 
-    # 7. RISK_ANALYSIS
-    risk_match = re.search(r"(?:why is|explain risk of|risk score of)\s+([a-zA-Z\s\?]+)", query_lower)
-    is_risk = (intent == "RISK_ANALYSIS" and len(classifier_entities) >= 1) or risk_match
-    if is_risk:
-        ent = None
-        if intent == "RISK_ANALYSIS" and len(classifier_entities) >= 1:
-            target_name = classifier_entities[0].lower()
-            ent = next((e for e in entities if target_name in e["name"].lower()), None)
-            
-        if not ent and risk_match:
-            target_name = risk_match.group(1).strip().replace("?", "")
-            ent = next((e for e in entities if target_name in e["name"].lower()), None)
-            
-        if ent:
-            risk = ent.get("risk_score", 0.0)
-            properties = ent.get("properties", {})
-            classification_type = ent.get("type", "PERSON")
-            grounding_context = f"Suspect '{ent['name']}' classified as {classification_type} has a threat risk index of {risk:.2f}. Attributes: {properties}."
-            
-            system_persona = "You are NEXUS AI, an investigation intelligence assistant. Explain why this suspect is marked with this risk index based strictly on facts."
-            user_prompt = f"Conversation History:\n{history_context}\n\nFacts: {grounding_context}\n\nQuestion: {query}"
-            answer = await call_hf_api(system_persona, user_prompt)
-            if not answer:
-                status_flag = "suspicious attributes" if properties.get("flagged") else "network positions"
-                answer = f"Suspect '{ent['name']}' has a risk score of {risk:.2f} due to {status_flag}. Attributes recorded: {properties}."
-                
-            node_id = entity_id_map.get(str(ent["_id"]), str(ent["_id"])) if case_id == "all" else str(ent["_id"])
-            return {
-                "answer": answer,
-                "actions": [{"type": "FOCUS_NODE", "node_id": node_id, "scope": case_id}],
-                "supporting_evidence": [f"Risk score: {risk}"]
-            }
+def search_entities_fuzzy(
+    entities: List[Dict[str, Any]], 
+    query_name: str
+) -> Tuple[List[Dict[str, Any]], bool]:
+    """
+    Searches case entities using multi-tiered normalized matching.
+    Returns: (matched_entities, is_ambiguous)
+    """
+    if not query_name or not entities:
+        return [], False
 
-    # 8. HIGH THREAT
-    if "high risk" in query_lower or "threats" in query_lower:
-        high_risk_ents = [e for e in (unique_entities.values() if case_id == "all" else entities) if e.get("risk_score", 0.0) > 0.7]
-        if not high_risk_ents:
-            scope_text = "database" if case_id == "all" else "active case file"
-            return {
-                "answer": f"No high-risk entities (risk index > 0.70) are currently recorded in the {scope_text}.",
-                "actions": [],
-                "supporting_evidence": []
-            }
-        list_str = ", ".join([f"'{e['name']}' (Risk: {e['risk_score']:.2f})" for e in high_risk_ents])
-        scope_text = "all combined cases" if case_id == "all" else "this case"
-        grounding_context = f"High-risk suspects detected in {scope_text}: {list_str}."
-        system_persona = "You are NEXUS AI, an investigation intelligence assistant. Present the list of high threat targets professionally."
-        user_prompt = f"Conversation History:\n{history_context}\n\nFacts: {grounding_context}\n\nQuestion: {query}"
-        answer = await call_hf_api(system_persona, user_prompt)
-        if not answer:
-            answer = f"The following high-risk suspect profiles require immediate review: {list_str}."
-        return {
-            "answer": answer,
-            "actions": [{"type": "FILTER_RISK", "min_risk": 0.7, "scope": case_id}],
-            "supporting_evidence": [e["name"] for e in high_risk_ents]
-        }
+    norm_query = clean_query_text(query_name)
+    if not norm_query:
+        return [], False
 
-    # 9. KILLED/ORDERED/FINANCED
-    killed_match = re.search(r"who\s+(?:killed|murdered|assassinated)\s+([a-zA-Z\s\?]+)", query_lower)
-    ordered_match = re.search(r"who\s+(?:ordered|planned)\s+(?:the\s+(?:killing|murder|assassination)\s+of\s+)?([a-zA-Z\s\?]+)", query_lower)
-    financed_match = re.search(r"who\s+(?:financed|paid\s+for|funded)\s+(?:the\s+(?:killing|murder|assassination)\s+of\s+)?([a-zA-Z\s\?]+)", query_lower)
-    
-    intent_match = None
-    rel_type = None
-    if killed_match:
-        intent_match = killed_match; rel_type = "KILLED"
-    elif ordered_match:
-        intent_match = ordered_match; rel_type = "ORDERED"
-    elif financed_match:
-        intent_match = financed_match; rel_type = "FINANCED"
-        
-    if intent_match:
-        target_name = intent_match.group(1).strip().replace("?", "")
-        target_ent = next((e for e in entities if target_name in e["name"].lower()), None)
-        if not target_ent:
-            if not is_follow_up:
-                scope_text = "database" if case_id == "all" else "case directory"
-                return {
-                    "answer": f"I couldn't locate '{target_name}' in the {scope_text}. Please verify the name.",
-                    "actions": [],
-                    "supporting_evidence": []
-                }
-        else:
-            target_id_str = str(target_ent["_id"])
-            relevant_rels = []
-            for r in relationships:
-                t_id = str(r.get("target_entity_id"))
-                if t_id == target_id_str and r.get("type", "").upper() == rel_type:
-                    relevant_rels.append(r)
-            if not relevant_rels and rel_type in ["ORDERED", "FINANCED"]:
-                killers = [r.get("source_entity_id") for r in relationships if str(r.get("target_entity_id")) == target_id_str and r.get("type", "").upper() == "KILLED"]
-                for killer_id in killers:
-                    indirect_rels = [r for r in relationships if str(r.get("target_entity_id")) == str(killer_id) and r.get("type", "").upper() == rel_type]
-                    relevant_rels.extend(indirect_rels)
-            if not relevant_rels:
-                scope_text = "across cases" if case_id == "all" else "in this case"
-                return {
-                    "answer": f"Analysis complete: No records found indicating who {rel_type.lower()} '{target_ent['name']}' {scope_text}.",
-                    "actions": [],
-                    "supporting_evidence": []
-                }
-            actors = []
-            entity_map = {str(e["_id"]): e for e in unique_entities.values()} if case_id == "all" else {str(e["_id"]): e for e in entities}
-            for r in relevant_rels:
-                source_id = str(r.get("source_entity_id"))
-                source_ent = entity_map.get(source_id)
-                if source_ent:
-                    status = r.get("status", "CONFIRMED")
-                    actors.append(f"{source_ent['name']} ({status})")
-            actors_str = ", ".join(actors)
-            grounding_context = f"Entities who {rel_type.lower()} {target_ent['name']}: {actors_str}."
-            system_persona = "You are NEXUS AI, an investigation intelligence assistant. Report the findings based strictly on the facts."
-            user_prompt = f"Conversation History:\n{history_context}\n\nFacts: {grounding_context}\n\nQuestion: {query}"
-            answer = await call_hf_api(system_persona, user_prompt)
-            if not answer:
-                answer = f"The following entities are recorded as having {rel_type.lower()} {target_ent['name']}: {actors_str}."
-            action_node = str(relevant_rels[0].get("source_entity_id")) if relevant_rels else target_id_str
-            node_id_to_focus = entity_id_map.get(action_node, action_node) if case_id == "all" else action_node
-            return {
-                "answer": answer,
-                "actions": [{"type": "FOCUS_NODE", "node_id": node_id_to_focus, "scope": case_id}],
-                "supporting_evidence": [f"{rel_type} -> {target_ent['name']}"]
-            }
+    tier1_exact = []
+    tier2_word_boundary = []
+    tier3_prefix = []
+    tier4_substring = []
 
-    # 10. GENERAL_RAG / FOLLOW_UP_CONTEXT / ENTITY_QUERY / RELATIONSHIP_QUERY / EVIDENCE_QUERY
-    # (Fallback query for any case context that requires RAG, graph traversal, or history pronoun tracking)
-    if case_id == "all":
-        suspects_count = len(unique_entities)
-        linkages_count = len(relationships)
-        case_summary = f"The global database holds {suspects_count} unique suspects and {linkages_count} linkages across all cases."
-    else:
-        case_summary = f"Active case file holds {len(entities)} suspects and {len(relationships)} linkages."
-        
-    try:
-        evidence_context = query_case_context(case_id, query)
-        if not evidence_context:
-            evidence_context = "No specific evidence found."
-        # PHASE 4: Context limits
-        # Truncate overly long RAG evidence to keep within Qwen 7B optimal window (e.g. ~2000 chars)
-        if len(evidence_context) > 2000:
-            evidence_context = evidence_context[:2000] + "... [TRUNCATED]"
-    except Exception as e:
-        print(f"Error querying ChromaDB: {e}")
-        evidence_context = "Evidence search unavailable."
-    
-    # We allow the LLM to process FOLLOW_UP_CONTEXT internally using `history_context` and `evidence_context`.
-    # TARGETED ENTITY CONTEXT BUILDER
-    targeted_entities = []
-    
-    # Phase 4 & 5: Case-scoped Entity Resolution against classifier entities
-    if classifier_entities:
-        for ce in classifier_entities:
-            # We already loaded case-scoped entities at the top
-            match = next((e for e in entities if ce.lower() in e.get("name", "").lower()), None)
-            if match and match not in targeted_entities:
-                targeted_entities.append(match)
-    
-    # Phase 4 & 5: Resolve against regex as well
-    who_match = None
-    if not targeted_entities:
-        who_match = re.search(r"who is\s+([a-zA-Z\s]+)", query_clean)
-        if who_match:
-            name = who_match.group(1).strip()
-            match = next((e for e in entities if name in e.get("name", "").lower()), None)
-            if match and match not in targeted_entities:
-                targeted_entities.append(match)
-                
-    # STATE 3: Entity does not exist in current case
-    NON_ENTITY_TERMS = {
-        "he", "she", "they", "this", "it", "case", "investigation", "events", "relationships",
-        "narrative", "story", "timeline", "chronological", "evidence", "data", "network",
-        "graph", "linkages", "suspects", "persons", "overview", "details", "summary", "incident",
-        "who", "what", "where", "when", "why", "how", "all", "the", "an", "a"
-    }
-    if (classifier_entities or who_match) and not targeted_entities:
-        target_name = (classifier_entities[0] if classifier_entities else who_match.group(1)).strip()
-        clean_target = target_name.lower().strip()
-        # Don't do this for generic terms or whole-case queries
-        if clean_target not in NON_ENTITY_TERMS and not any(term in clean_target for term in ["case", "narrative", "story", "event", "timeline"]):
-            return {
-                "answer": f"I couldn't find '{target_name}' in the current case data.",
-                "actions": [],
-                "supporting_evidence": []
-            }
+    for ent in entities:
+        name = ent.get("name", "")
+        norm_name = clean_query_text(name)
+        props = ent.get("properties", {}) or {}
 
-    targeted_context_blocks = []
-    used_sources = set()
-    
-    if targeted_entities:
-        used_sources.add("Entity records")
-        for ent in targeted_entities:
-            ent_id_str = str(ent["_id"])
-            props = ent.get("properties", {})
-            risk = ent.get("risk_score")
-            
-            # Phase 6: Targeted Entity Profile
-            block = [
-                f"TARGET ENTITY",
-                f"Name: {ent.get('name')}",
-                f"Type: {ent.get('type')}",
-                f"ID: {ent_id_str}"
-            ]
-            if risk is not None:
-                block.append(f"Risk: {risk}")
-            if props:
-                block.append(f"Properties: {props}")
-                
-            # Phase 7 & 8: Targeted Relationships with reasonable cap
-            rels = []
-            for r in relationships:
-                if str(r.get("source_entity_id")) == ent_id_str:
-                    tgt = next((e.get("name") for e in entities if str(e["_id"]) == str(r.get("target_entity_id"))), "Unknown")
-                    rels.append(f"[{ent.get('name')}] --{r.get('type')}--> [{tgt}]")
-                elif str(r.get("target_entity_id")) == ent_id_str:
-                    src = next((e.get("name") for e in entities if str(e["_id"]) == str(r.get("source_entity_id"))), "Unknown")
-                    rels.append(f"[{src}] --{r.get('type')}--> [{ent.get('name')}]")
-                    
-            if rels:
-                used_sources.add("Relationship graph")
-                block.append("RELATIONSHIPS:")
-                block.extend([f"- {rel}" for rel in rels[:20]])
-                if len(rels) > 20:
-                    block.append(f"- (...and {len(rels) - 20} more connections not shown)")
-                    
-            targeted_context_blocks.append("\n".join(block))
-            
-    if targeted_context_blocks:
-        case_summary += "\n\n" + "\n\n".join(targeted_context_blocks)
-    elif not targeted_entities and intent in ["CASE_FACT", "GRAPH_ANALYSIS"]:
-        # We don't have targeted entities, but we still want to provide SOME valid fallback facts
-        # rather than just truncating to the first 10 generic entities.
-        # However, we DO NOT limit to [:10] anymore, and we definitely DO NOT abort.
-        pass
+        # Collect possible aliases & codes
+        identifiers = [
+            str(ent.get("_id", "")),
+            str(props.get("entity_id", "")),
+            str(props.get("Entity ID", "")),
+            str(props.get("identifier", "")),
+            str(props.get("code", "")),
+            str(props.get("phone", "")),
+            str(props.get("email", ""))
+        ]
+        aliases = []
+        raw_aliases = props.get("aliases") or props.get("alias") or props.get("aka") or props.get("code_name")
+        if isinstance(raw_aliases, list):
+            aliases.extend([clean_query_text(str(a)) for a in raw_aliases])
+        elif isinstance(raw_aliases, str):
+            aliases.extend([clean_query_text(a) for a in raw_aliases.split(",")])
 
-    # --- PHASE 1: Enhanced Context & System Persona ---
-    from datetime import datetime
-    
-    # Authoritative server time
-    try:
-        from tzlocal import get_localzone
-        now_local = datetime.now(get_localzone())
-        tz_str = str(get_localzone())
-    except:
-        now_local = datetime.now().astimezone()
-        tz_str = str(now_local.tzinfo)
+        clean_identifiers = [clean_query_text(i) for i in identifiers if i]
 
-    date_str = now_local.strftime("%Y-%m-%d")
-    time_str = now_local.strftime("%H:%M:%S")
-    day_str = now_local.strftime("%A")
+        # Tier 1: Exact matches on name, code, or alias, or exact phone/email
+        if norm_query == norm_name or norm_query in clean_identifiers or norm_query in aliases:
+            tier1_exact.append(ent)
+            continue
 
-    system_persona = (
-        "You are NEXUS AI, an intelligent investigation assistant.\n\n"
-        f"CURRENT SYSTEM DATE: {date_str}\n"
-        f"CURRENT SYSTEM DAY: {day_str}\n"
-        f"CURRENT LOCAL TIME: {time_str} ({tz_str})\n\n"
-        "You assist users with information related to the NEXUS investigation platform and the currently selected investigation case.\n\n"
-        "STRICT GROUNDING RULES:\n"
-        "1. FACT VS INFERENCE: You must clearly distinguish between established case facts (from database/evidence) and your own analytical inferences. Do not state inferences as facts.\n"
-        "2. NO HALLUCINATION: Never invent entities, relationships, evidence, case dates, or graph metrics.\n"
-        "3. MISSING INFORMATION (STATE 2): If the user asks for a property of a known targeted entity that is missing from its listed properties, respond explicitly: 'The entity is present in the case, but that information is not recorded in the available case data.'\n"
-        "4. NO RELEVANT INFORMATION (STATE 5): If the provided case context contains NO facts relevant to the query at all, explicitly respond: 'Insufficient information is available in the current case data to answer that question.'\n"
-        "5. NO DEFINITIVE CULPABILITY: Never make a definitive guilt/innocence determination.\n"
-        "6. CASE ISOLATION: Base investigation answers ONLY on the provided Case Data, Evidence Context, and Conversation History.\n"
-        "7. RESOLVE PRONOUNS: Use the Conversation History to resolve references like 'he', 'she', or 'they'.\n"
-        "8. PROFESSIONAL TONE: Respond concisely and professionally as a senior investigator. Use bullet points for complex facts.\n"
-        "9. GENERAL KNOWLEDGE: You MAY answer general knowledge questions natively without claiming missing case data.\n"
+        # Tier 2: Word boundary matching (e.g. surname "mehta" matching "Arjun Mehta" or "Arjun" matching both)
+        query_words = norm_query.split()
+        name_words = norm_name.split()
+
+        # If user typed one word (e.g. "Arjun" or "Mehta")
+        if len(query_words) == 1 and any(query_words[0] == w for w in name_words):
+            tier2_word_boundary.append(ent)
+            continue
+        # If user typed multiple words and all match individual words in name
+        elif len(query_words) > 1 and all(qw in name_words for qw in query_words):
+            tier2_word_boundary.append(ent)
+            continue
+
+        # Tier 3: Prefix / Initial match (e.g. "Arjun M" -> "Arjun Mehta")
+        if len(query_words) == 2 and len(name_words) >= 2:
+            if query_words[0] == name_words[0] and (name_words[1].startswith(query_words[1]) or query_words[1].startswith(name_words[1])):
+                tier3_prefix.append(ent)
+                continue
+
+        # Tier 4: Substring matching on name or identifiers (e.g. partial email or phone)
+        if len(norm_query) >= 3 and (norm_query in norm_name or norm_name in norm_query or any(norm_query in i for i in clean_identifiers)):
+            tier4_substring.append(ent)
+
+
+    # Resolution prioritization
+    if tier1_exact:
+        # Check if multiple distinct entities have exact match (e.g. Person vs Organization)
+        if len(tier1_exact) > 1:
+            return tier1_exact, True
+        return tier1_exact, False
+
+    if tier2_word_boundary:
+        if len(tier2_word_boundary) > 1:
+            return tier2_word_boundary, True
+        return tier2_word_boundary, False
+
+    if tier3_prefix:
+        if len(tier3_prefix) > 1:
+            return tier3_prefix, True
+        return tier3_prefix, False
+
+    if tier4_substring:
+        if len(tier4_substring) > 1:
+            return tier4_substring, True
+        return tier4_substring, False
+
+    return [], False
+
+# ==============================================================================
+# 4. INTENT DETECTION
+# ==============================================================================
+
+def detect_request_intent(query: str) -> str:
+    """
+    Accurately classifies the user's investigation question into one of 11 supported request types.
+    """
+    q_lower = query.lower().strip()
+    q_clean = clean_query_text(query)
+
+    # 1. OUT_OF_SCOPE
+    out_of_scope = [r"\b(?:weather|sports|celebrity|gossip|movie|recipe|dinner|cooking|homework)\b"]
+    if any(re.search(p, q_lower) for p in out_of_scope):
+        return "OUT_OF_SCOPE"
+
+    # 2. GREETINGS & SYSTEM HELP
+    greeting_patterns = [
+        r"^(?:hi|hello|hey|greetings|good\s+morning|good\s+afternoon|good\s+evening)(?:\s+nexus)?$",
+        r"^(?:who are you|what are you)\??$",
+        r"^(?:what can you do|how can you help|help me|system help)\??$"
+    ]
+    if any(re.match(p, q_lower) for p in greeting_patterns):
+        return "GENERAL_KNOWLEDGE"
+
+    # 3. DATE/TIME
+    if any(re.match(p, q_lower) for p in [r"^what day is today\??$", r"^what is the date\??$", r"^current date\??$", r"^what time is it\??$"]):
+        return "CURRENT_DATE_TIME"
+
+    # 4. CASE SUMMARY & CASE STATUS
+    case_summary_patterns = [
+        r"summarize (?:this|the|current|active)?\s*(?:case|investigation)",
+        r"what is this case about",
+        r"case summary",
+        r"overview of this case",
+        r"what is the case status",
+        r"tell me about this case"
+    ]
+    if any(re.search(p, q_lower) for p in case_summary_patterns):
+        return "CASE_SUMMARY"
+
+    # 5. MISSING EVIDENCE / INTELLIGENCE GAPS
+    gap_patterns = [
+        r"missing evidence", r"intelligence gaps?", r"evidence gaps?",
+        r"unverified leads?", r"prioritize for further investigation",
+        r"highlight missing evidence", r"blind spots?"
+    ]
+    if any(re.search(p, q_lower) for p in gap_patterns):
+        return "EVIDENCE_GAP"
+
+    # 6. CONNECTION PATH / SHORTEST PATH
+    path_patterns = [
+        r"shortest (?:known )?path",
+        r"connection between",
+        r"path between",
+        r"link between",
+        r"how is .+ connected to",
+        r"how is .+ linked to",
+        r"how is .+ related to",
+        r"trace (?:the )?shortest"
+    ]
+    if any(re.search(p, q_lower) for p in path_patterns):
+        return "CONNECTION_PATH"
+
+    # 7. RISK ANALYSIS
+    risk_patterns = [
+        r"highest[- ]risk", r"most dangerous", r"top threats?", r"critical entities",
+        r"why is .+ high risk", r"why is .+ marked as high risk", r"explain risk (?:score )?(?:of|for)",
+        r"risk factors?", r"risk analysis", r"threat assessment"
+    ]
+    if any(re.search(p, q_lower) for p in risk_patterns):
+        return "RISK_ANALYSIS"
+
+    # 8. EVIDENCE LOOKUP
+    evidence_patterns = [
+        r"what evidence mentions", r"evidence linked to", r"evidence linking",
+        r"evidence for", r"what evidence supports", r"forensic evidence",
+        r"records mention"
+    ]
+    if any(re.search(p, q_lower) for p in evidence_patterns):
+        return "EVIDENCE_LOOKUP"
+
+    # 9. TIMELINE LOOKUP
+    timeline_patterns = [
+        r"what happened to .+ on", r"what happened on", r"timeline of",
+        r"show .+ timeline", r"chronological", r"sequence of events",
+        r"event history", r"itinerary"
+    ]
+    if any(re.search(p, q_lower) for p in timeline_patterns):
+        return "TIMELINE_LOOKUP"
+
+    # 10. GEOGRAPHIC / LOCATION
+    location_patterns = [
+        r"where has .+ been", r"known locations?", r"locations? (?:associated with|of)",
+        r"where was .+ seen", r"geographic", r"travel history"
+    ]
+    if any(re.search(p, q_lower) for p in location_patterns):
+        return "GEOGRAPHIC_INFO"
+
+    # 11. ENTITY RELATIONSHIPS
+    rel_patterns = [
+        r"who is .+ connected to", r"who does .+ communicate with",
+        r"who does .+ talk to", r"who does .+ meet",
+        r"what organizations? (?:are|is) connected to",
+        r"relationships? of", r"connections? of", r"what about (?:his|her|their) connections"
+    ]
+    if any(re.search(p, q_lower) for p in rel_patterns):
+        return "ENTITY_RELATIONSHIPS"
+
+    # 12. NETWORK ANALYSIS / CENTRALITY
+    network_patterns = [
+        r"most central", r"centrality", r"network analysis", r"graph density",
+        r"central hub", r"node degree"
+    ]
+    if any(re.search(p, q_lower) for p in network_patterns):
+        return "NETWORK_ANALYSIS"
+
+    # 13. GENERAL INVESTIGATION QUESTIONS
+    general_concepts = [
+        r"what is a 2-hop", r"what does a high-risk entity mean", r"why is network analysis useful",
+        r"what does this relationship mean", r"what does .+ mean in investigation",
+        r"what is centrality", r"what is a link chart"
+    ]
+    if any(re.search(p, q_lower) for p in general_concepts):
+        return "GENERAL_KNOWLEDGE"
+
+    # 14. ENTITY PROFILE / IDENTIFICATION (Default for queries with named entities)
+    profile_patterns = [
+        r"^who is\s+", r"^tell me about\s+", r"^what do you know about\s+",
+        r"^who is .+ in this case", r"^profile of\s+", r"^identify\s+"
+    ]
+    if any(re.search(p, q_lower) for p in profile_patterns):
+        return "ENTITY_PROFILE"
+
+    # Fallback to general inquiry
+    return "GENERAL_INQUIRY"
+
+# ==============================================================================
+# 5. RESPONSE BUILDERS & FORMATTERS (STRICT ZERO-HALLUCINATION)
+# ==============================================================================
+
+def format_disambiguation_response(matches: List[Dict[str, Any]]) -> str:
+    """Renders the required disambiguation prompt when multiple entities match."""
+    lines = [f"I found {len(matches)} possible matches:\n"]
+    for i, ent in enumerate(matches, 1):
+        name = ent.get("name", "Unknown")
+        ent_type = ent.get("type", "ENTITY").upper()
+        lines.append(f"{i}. {name} — {ent_type}")
+    lines.append("\nWhich one do you mean?")
+    return "\n".join(lines)
+
+def format_entity_not_found_response(query_name: str) -> str:
+    """Renders the standardized not-found response without hallucination."""
+    display_name = query_name if query_name else "the requested entity"
+    # Capitalize for display if possible
+    words = [w.capitalize() for w in display_name.split()]
+    display_name_formatted = " ".join(words)
+
+    return (
+        f"I couldn't find an entity named '{display_name_formatted}' in the active case.\n\n"
+        f"I searched the available case entities and evidence.\n\n"
+        f"You can try:\n"
+        f"• a different spelling\n"
+        f"• surname only\n"
+        f"• entity ID\n"
+        f"• phone/email\n"
+        f"• another identifier"
     )
+
+def format_entity_profile_response(
+    entity: Dict[str, Any],
+    relationships: List[Dict[str, Any]],
+    evidence_docs: List[Dict[str, Any]],
+    timeline_events: List[Dict[str, Any]],
+    entity_map: Dict[str, Dict[str, Any]]
+) -> str:
+    """
+    Formats the complete Entity Profile strictly according to section 5 of instructions.
+    Only shows sections and fields for which actual data exists in the active case.
+    """
+    lines = ["ENTITY PROFILE", "────────────────\n"]
     
-    # Fix: Make sure empty ChromaDB doesn't break the system prompt or override structured case data.
-    if "No specific evidence" in evidence_context or "Evidence search unavailable" in evidence_context:
-        evidence_context_prompt = "No additional unstructured evidence available via search."
+    # Header fields
+    name = entity.get("name", "Unknown")
+    ent_type = entity.get("type", "ENTITY").upper()
+    ent_id = str(entity.get("_id", entity.get("id", "")))
+    props = entity.get("properties", {}) or {}
+
+    lines.append(f"Name: {format_entity_link(entity)}")
+    lines.append(f"Type: {ent_type}")
+    code = props.get("entity_id") or props.get("Entity ID") or props.get("identifier") or props.get("code")
+    if code:
+        lines.append(f"Entity ID: {code}")
+
+    # Check clearance status
+    is_cleared = (
+        props.get("is_cleared") is True
+        or entity.get("disposition") in ["CLEARED", "INNOCENT"]
+        or props.get("disposition") in ["INNOCENT", "CLEARED"]
+        or props.get("clearance_status") == "FREE_TO_GO"
+    )
+
+    if is_cleared:
+        lines.append("\nDISPOSITION / STATUS")
+        lines.append("Status: CLEARED / INNOCENT (Free to Go)")
+        if props.get("resolution_notes"):
+            lines.append(f"Clearance Note: {props.get('resolution_notes')}")
+        prev_risk = props.get("previous_risk_score")
+        if prev_risk is not None:
+            lines.append(f"Risk Score: 0.00 — Cleared (Prior Risk: {float(prev_risk):.2f})")
+        else:
+            lines.append("Risk Score: 0.00 — Cleared of suspicion")
+        lines.append("Risk Level: CLEARED (Free to Go)")
     else:
-        evidence_context_prompt = evidence_context
-        
-    user_prompt = f"Case Data:\n{case_summary}\n\nEvidence Context:\n{evidence_context_prompt}\n\nConversation History:\n{history_context}\n\nQuestion: {query}"
-    answer = await call_hf_api(system_persona, user_prompt)
-    
-    if not answer:
-        answer = generate_fallback_answer(query, case_id, entities, relationships, evidence_context, intent, classifier_entities)
-        
-    if "No additional unstructured" not in evidence_context_prompt and "No specific evidence" not in evidence_context:
-        used_sources.add("ChromaDB")
-        
-    supporting_evidence_arr = list(used_sources)
-        
-    return {
-        "answer": answer,
-        "actions": [],
-        "supporting_evidence": supporting_evidence_arr
-    }
+        # Risk
+        risk_score = float(entity.get("risk_score", 0.0))
+        risk_level = get_risk_level(risk_score)
+        lines.append("\nRISK")
+        lines.append(f"Risk Score: {risk_score:.2f} — {risk_level.capitalize()}")
+        lines.append(f"Risk Level: {risk_level}")
 
-def generate_chronological_narrative_fallback(case_name: str, case_desc: str, events: list, entities: list, relationships: list) -> str:
-    lines = []
-    lines.append("1. Executive Summary")
-    desc_text = case_desc if case_desc else "Active multi-entity investigation analyzing coordinated movements, communications, and transactions."
-    lines.append(f"Case: {case_name}")
-    lines.append(f"{desc_text}")
-    lines.append(f"The investigation currently tracks {len(entities)} entities and {len(relationships)} relationships, mapping key communication channels, logistics operations, and financial transactions.\n")
+    # Known Information
+    known_info = []
+    role = props.get("role") or props.get("Role / Description") or props.get("description") or entity.get("description")
+    if role and str(role).strip():
+        known_info.append(f"• Role: {role}")
+    org = props.get("associated_organization") or props.get("organization") or props.get("company")
+    if org and str(org).strip():
+        known_info.append(f"• Associated organization: {org}")
+    loc = props.get("city") or props.get("known_location") or props.get("location")
+    if loc and str(loc).strip():
+        known_info.append(f"• Known location: {loc}")
+    phone = props.get("phone") or props.get("phone_number")
+    if phone and str(phone).strip():
+        known_info.append(f"• Phone: {phone}")
+    email = props.get("email")
+    if email and str(email).strip():
+        known_info.append(f"• Email: {email}")
 
-    lines.append("2. Chronological Sequence of Events")
-    if events:
-        lines.append(f"Analysis of {len(events)} chronological milestones reconstructs the following sequence of events:\n")
-        for ev in events[:25]:
-            date_display = ev.get("date", "Recorded Date")
-            src = ev.get("source", "Unknown Entity")
-            tgt = ev.get("target", "Unknown Entity")
-            rel = ev.get("type", "CONNECTED_TO")
-            lines.append(f"• {date_display}: {src} engaged in {rel} with {tgt}.")
-        if len(events) > 25:
-            lines.append(f"\n(...plus {len(events) - 25} additional corroborated interactions recorded in the timeline)\n")
+    for k, v in props.items():
+        if k.lower() not in ["role", "role / description", "description", "associated_organization", "organization", "company", "city", "known_location", "location", "phone", "phone_number", "email", "entity_id", "entity id", "code", "identifier", "aliases", "alias", "aka"]:
+            if v and str(v).strip():
+                known_info.append(f"• {k.capitalize()}: {v}")
+
+    if known_info:
+        lines.append("\nKNOWN INFORMATION")
+        lines.extend(known_info)
+
+    # Relationships involving this entity
+    rel_lines = []
+    connected_entity_ids = set()
+    for r in relationships:
+        src_id = str(r.get("source_entity_id", ""))
+        tgt_id = str(r.get("target_entity_id", ""))
+        rel_type = r.get("type", "CONNECTED_TO").replace("_", " ").upper()
+        
+        if src_id == ent_id:
+            tgt_ent = entity_map.get(tgt_id)
+            if tgt_ent:
+                rel_lines.append(f"• {format_entity_link(tgt_ent)} — {rel_type}")
+                connected_entity_ids.add(tgt_id)
+        elif tgt_id == ent_id:
+            src_ent = entity_map.get(src_id)
+            if src_ent:
+                rel_lines.append(f"• {format_entity_link(src_ent)} — {rel_type}")
+                connected_entity_ids.add(src_id)
+
+    if rel_lines:
+        lines.append("\nRELATIONSHIPS")
+        lines.extend(rel_lines[:15])
+
+    # Evidence linking to entity
+    ev_lines = []
+    for ev in evidence_docs:
+        ev_title = ev.get("title", "Evidence")
+        raw_text = ev.get("raw_content", "") or ""
+        # Check if entity name or code is in evidence text/title
+        if name.lower() in raw_text.lower() or name.lower() in ev_title.lower() or (code and str(code).lower() in raw_text.lower()):
+            desc = ev.get("summary") or ev_title
+            ev_lines.append(f"• {ev_title} — {desc[:80]}")
+
+    # Also check relationships evidence_ids
+    for r in relationships:
+        if str(r.get("source_entity_id")) == ent_id or str(r.get("target_entity_id")) == ent_id:
+            for ev_id in r.get("evidence_ids", []):
+                ev_match = next((e for e in evidence_docs if str(e.get("_id", "")) == str(ev_id)), None)
+                if ev_match:
+                    item = f"• {ev_match.get('title', 'Evidence')} — Corroborates relationship"
+                    if item not in ev_lines:
+                        ev_lines.append(item)
+
+    if ev_lines:
+        lines.append("\nEVIDENCE")
+        lines.extend(ev_lines[:8])
+
+    # Timeline events
+    tl_lines = []
+    for tl in timeline_events:
+        t_title = tl.get("title", "")
+        t_msg = tl.get("message", "")
+        if name.lower() in t_title.lower() or name.lower() in t_msg.lower() or (code and str(code).lower() in t_msg.lower()):
+            ts = tl.get("timestamp", "")
+            time_part = str(ts)[:16] if ts else "Recorded Date"
+            tl_lines.append(f"• {time_part} — {t_title or t_msg}")
+
+    if tl_lines:
+        lines.append("\nTIMELINE")
+        lines.extend(tl_lines[:6])
+
+    # Locations
+    loc_lines = []
+    for cid in connected_entity_ids:
+        connected = entity_map.get(cid)
+        if connected and connected.get("type", "").upper() == "LOCATION":
+            loc_lines.append(f"• {connected.get('name')}")
+    if loc and str(loc).strip() and f"• {loc}" not in loc_lines:
+        loc_lines.append(f"• {loc}")
+
+    if loc_lines:
+        lines.append("\nLOCATIONS")
+        lines.extend(loc_lines)
+
+    # Investigation Notes
+    notes = entity.get("notes") or props.get("notes")
+    if notes and str(notes).strip():
+        lines.append("\nINVESTIGATION NOTES")
+        lines.append(f"• {notes}")
+
+    # Auditable Source & Confidence
+    if is_cleared:
+        lines.append("\nThe entity is currently classified as CLEARED / INNOCENT (Free to Go).")
     else:
-        lines.append("Chronological timestamps are currently being indexed from the latest ingested evidence files.\n")
-
-    lines.append("3. Key Entities & Network Dynamics")
-    sorted_ents = sorted(entities, key=lambda e: e.get("risk_score", 0), reverse=True)
-    key_actors = sorted_ents[:5]
-    if key_actors:
-        lines.append("Central figures and organizations identified in the network:")
-        for ent in key_actors:
-            risk = ent.get("risk_score", 0)
-            risk_pct = f"{int(risk * 100)}%" if risk else "Assessing"
-            lines.append(f"• {ent.get('name')} ({ent.get('type', 'Entity')}) — Threat Risk: {risk_pct}")
-    lines.append("")
-
-    lines.append("4. Investigative Findings & Recommendations")
-    lines.append("• Critical communication clustering indicates active coordination across identified organizational nodes.")
-    lines.append("• Cross-reference suspect itineraries against location access logs to finalize the corroboration index.")
-    lines.append("• Review financial transaction trails and vehicles associated with prime network actors.")
+        lines.append(f"\nThe entity is currently classified as {risk_level} RISK.")
+    lines.append("\nSource:\nEntity Database → Active Case Graph")
+    lines.append("Confidence:\nHIGH")
 
     return "\n".join(lines)
 
-def generate_fallback_answer(query: str, case_id: str, entities: list, relationships: list, evidence_context: str, intent: str = "UNKNOWN", classifier_entities: list = None) -> str:
-    if classifier_entities is None:
-        classifier_entities = []
-        
-    query_clean = re.sub(r'[^\w\s]', '', query.lower()).strip()
-    
-    # Generic Data-Driven Fallbacks (Only use actual entities and relationships)
-    
-    # 1. Who is most central?
-    if "central" in query_clean and ("most" in query_clean or "network" in query_clean):
-        if not relationships:
-            return "Insufficient information is available in the current case records to answer this question."
-        counts = {}
-        for r in relationships:
-            counts[str(r.get("source_entity_id"))] = counts.get(str(r.get("source_entity_id")), 0) + 1
-            counts[str(r.get("target_entity_id"))] = counts.get(str(r.get("target_entity_id")), 0) + 1
-        most_central_id = max(counts, key=counts.get)
-        central_ent = next((e for e in entities if str(e["_id"]) == most_central_id), None)
-        if central_ent:
-            return f"Based on the current case records, the most central entity in the network is {central_ent.get('name')} with {counts[most_central_id]} connections."
-            
-    # 2. What organizations are involved?
-    if "organization" in query_clean or "organizations" in query_clean:
-        orgs = [e.get("name") for e in entities if e.get("type", "").upper() == "ORGANIZATION"]
-        if orgs:
-            return f"The organizations involved in the current case records are: {', '.join(orgs)}."
-        return "Insufficient information is available in the current case records to answer this question."
-        
-    # 3. What locations are involved?
-    if "location" in query_clean or "locations" in query_clean or "where" in query_clean:
-        locs = [e.get("name") for e in entities if e.get("type", "").upper() == "LOCATION"]
-        if locs:
-            return f"The locations associated with the current case records are: {', '.join(locs)}."
-        # Don't return insufficient for "where" as it might be handled below
-        if "location" in query_clean:
-            return "Insufficient information is available in the current case records to answer this question."
+def format_relationships_response(
+    entity: Dict[str, Any],
+    relationships: List[Dict[str, Any]],
+    all_entities_map: Dict[str, Dict[str, Any]],
+    G: nx.Graph,
+    filter_type: Optional[str] = None
+) -> str:
+    """Formats direct connections and calculated 2-hop connections."""
+    name = entity.get("name", "Unknown")
+    ent_id = str(entity.get("_id", entity.get("id", "")))
 
-    # 4. What financial transactions occurred?
-    if "financial" in query_clean or "transaction" in query_clean or "transferred" in query_clean:
-        trans_rels = [r for r in relationships if r.get("type", "").upper() in ["TRANSFERRED_TO", "FINANCED"]]
-        if trans_rels:
-            res = "Financial transactions found in case records:\n"
-            for r in trans_rels:
-                src = next((e.get("name") for e in entities if str(e["_id"]) == str(r.get("source_entity_id"))), "Unknown")
-                tgt = next((e.get("name") for e in entities if str(e["_id"]) == str(r.get("target_entity_id"))), "Unknown")
-                res += f"- {src} -> {tgt} ({r.get('type')})\n"
-            return res.strip()
-        amounts = [e.get("name") for e in entities if e.get("type", "").upper() == "FINANCIAL_AMOUNT"]
-        if amounts:
-            return f"Financial amounts found in the case records: {', '.join(amounts)}."
-        return "Insufficient information is available in the current case records to answer this question."
-        
-    # 5. Who is connected to X?
-    connected_match = re.search(r"(?:who is|what is) connected to ([a-zA-Z\s]+)", query_clean)
-    is_connected_query = (intent in ["GRAPH_ANALYSIS", "PATH_TRACING", "CASE_RELATIONSHIP"] and len(classifier_entities) == 1) or connected_match
+    direct_connections = []
+    direct_ids = set()
+
+    for r in relationships:
+        src_id = str(r.get("source_entity_id", ""))
+        tgt_id = str(r.get("target_entity_id", ""))
+        rel_type = r.get("type", "CONNECTED_TO").upper()
+
+        if src_id == ent_id:
+            other = all_entities_map.get(tgt_id)
+            if other:
+                if not filter_type or other.get("type", "").upper() == filter_type.upper() or filter_type.upper() in rel_type:
+                    direct_connections.append((other, rel_type))
+                    direct_ids.add(tgt_id)
+        elif tgt_id == ent_id:
+            other = all_entities_map.get(src_id)
+            if other:
+                if not filter_type or other.get("type", "").upper() == filter_type.upper() or filter_type.upper() in rel_type:
+                    direct_connections.append((other, rel_type))
+                    direct_ids.add(src_id)
+
+    if not direct_connections:
+        spec_text = f" of type {filter_type}" if filter_type else ""
+        return (
+            f"No direct connections{spec_text} were found for {format_entity_link(entity)} in the current case data.\n\n"
+            f"Source:\nCase Relationship Graph\nConfidence:\nHIGH"
+        )
+
+    lines = ["DIRECT CONNECTIONS\n"]
+    for i, (other, rel_type) in enumerate(direct_connections, 1):
+        lines.append(f"{i}. {format_entity_link(other)}")
+        lines.append(f"   Relationship: {rel_type}\n")
+
+    # Calculate 2-hop connections from actual graph data
+    two_hop_items = []
+    if ent_id in G:
+        for intermediate_id in G.neighbors(ent_id):
+            inter_ent = all_entities_map.get(intermediate_id)
+            for hop2_id in G.neighbors(intermediate_id):
+                if hop2_id != ent_id and hop2_id not in direct_ids:
+                    hop2_ent = all_entities_map.get(hop2_id)
+                    if hop2_ent and inter_ent:
+                        item = f"• {format_entity_link(hop2_ent)} via {inter_ent.get('name')}"
+                        if item not in two_hop_items:
+                            two_hop_items.append(item)
+
+    if two_hop_items:
+        lines.append("2-hop connections:")
+        lines.extend(two_hop_items[:8])
+
+    lines.append("\nSource:\nCase Relationship Graph")
+    lines.append("Confidence:\nHIGH")
+    return "\n".join(lines)
+
+def format_connection_path_response(
+    ent1: Dict[str, Any],
+    ent2: Dict[str, Any],
+    path: List[str],
+    relationships: List[Dict[str, Any]],
+    all_entities_map: Dict[str, Dict[str, Any]]
+) -> str:
+    """Formats topological path traversal with vertical arrows and relationship chains."""
+    if not path or len(path) < 2:
+        return (
+            f"No known connection was found between {format_entity_link(ent1)} and {format_entity_link(ent2)} in the current case data.\n\n"
+            f"Source:\nNetwork Graph Traversal\nConfidence:\nHIGH"
+        )
+
+    chain_entities = [all_entities_map.get(nid) for nid in path if all_entities_map.get(nid)]
+    if len(chain_entities) < 2:
+        return "No known connection was found between these entities in the current case data."
+
+    lines = ["CONNECTION FOUND\n"]
     
-    if is_connected_query:
-        target_ent = None
-        if intent in ["GRAPH_ANALYSIS", "PATH_TRACING", "CASE_RELATIONSHIP"] and len(classifier_entities) == 1:
-            target_name = classifier_entities[0].lower()
-            target_ent = next((e for e in entities if target_name in e.get("name", "").lower()), None)
-            
-        if not target_ent and connected_match:
-            target_name = connected_match.group(1).strip()
-            target_ent = next((e for e in entities if target_name in e.get("name", "").lower()), None)
-            
-        if target_ent:
-            tid = str(target_ent["_id"])
-            connections = []
-            for r in relationships:
-                if str(r.get("source_entity_id")) == tid:
-                    other = next((e.get("name") for e in entities if str(e["_id"]) == str(r.get("target_entity_id"))), None)
-                    if other: connections.append(f"{other} ({r.get('type')})")
-                elif str(r.get("target_entity_id")) == tid:
-                    other = next((e.get("name") for e in entities if str(e["_id"]) == str(r.get("source_entity_id"))), None)
-                    if other: connections.append(f"{other} ({r.get('type')})")
-            if connections:
-                return f"Based on the case records, {target_ent.get('name')} is connected to: {', '.join(connections)}."
-        return "Insufficient information is available in the current case records to answer this question."
+    # Vertical visual diagram
+    for i, ent in enumerate(chain_entities):
+        lines.append(format_entity_link(ent))
+        if i < len(chain_entities) - 1:
+            lines.append("↓")
 
-    # 6. Default Fallback
-    return "Insufficient information is available in the current case data to answer that question."
+    lines.append("\nRelationship chain:\n")
+    
+    rel_types = []
+    for i in range(len(chain_entities) - 1):
+        src = chain_entities[i]
+        tgt = chain_entities[i+1]
+        src_id = str(src.get("_id", src.get("id", "")))
+        tgt_id = str(tgt.get("_id", tgt.get("id", "")))
 
-async def call_hf_api(system_prompt: str, user_prompt: str, model: str = None, format: str = None) -> str:
+        # Find relationship edge
+        matched_rel = next(
+            (r for r in relationships if 
+             (str(r.get("source_entity_id")) == src_id and str(r.get("target_entity_id")) == tgt_id) or
+             (str(r.get("source_entity_id")) == tgt_id and str(r.get("target_entity_id")) == src_id)),
+            None
+        )
+        r_type = matched_rel.get("type", "CONNECTED_TO").upper() if matched_rel else "LINKED_TO"
+        rel_types.append(r_type)
+
+        lines.append(format_entity_link(src))
+        lines.append(f"→ {r_type}")
+        lines.append(f"→ {format_entity_link(tgt)}\n")
+
+    lines.append(f"Path length: {len(chain_entities) - 1} relationships")
+    lines.append("\nSource:\nNetwork Graph Traversal")
+    lines.append("Confidence:\nHIGH")
+    return "\n".join(lines)
+
+def format_risk_analysis_response(
+    entity: Dict[str, Any],
+    relationships: List[Dict[str, Any]],
+    evidence_docs: List[Dict[str, Any]],
+    all_entities_map: Dict[str, Dict[str, Any]]
+) -> str:
+    """Explains risk factors strictly supported by actual case data."""
+    name = entity.get("name", "Unknown")
+    ent_id = str(entity.get("_id", entity.get("id", "")))
+    score = float(entity.get("risk_score", 0.0))
+    level = get_risk_level(score)
+    props = entity.get("properties", {}) or {}
+
+    is_cleared = (
+        props.get("is_cleared") is True
+        or entity.get("disposition") in ["CLEARED", "INNOCENT"]
+        or props.get("disposition") in ["INNOCENT", "CLEARED"]
+        or props.get("clearance_status") == "FREE_TO_GO"
+    )
+    if is_cleared:
+        lines = [f"{name.upper()} — RISK ANALYSIS\n"]
+        lines.append("Risk Score: 0.00")
+        lines.append("Risk Level: CLEARED / INNOCENT\n")
+        lines.append("Contributing factors:")
+        lines.append("• Subject was investigated and cleared as INNOCENT (Free to Go) by investigator.")
+        if props.get("resolution_notes"):
+            lines.append(f"• Resolution finding: {props.get('resolution_notes')}")
+        prev_risk = props.get("previous_risk_score")
+        if prev_risk:
+            lines.append(f"• Prior calculated risk was {float(prev_risk):.2f} (now nullified).")
+        lines.append("• Entity is excluded from active threat monitoring and alerts.")
+        lines.append("\nSource:\nInvestigator Intelligence Clearance Log")
+        lines.append("Confidence:\nHIGH")
+        return "\n".join(lines)
+
+    lines = [f"{name.upper()} — RISK ANALYSIS\n"]
+    lines.append(f"Risk Score: {score:.2f}")
+    lines.append(f"Risk Level: {level}\n")
+
+    contributing_factors = []
+
+    # 1. High-risk connections
+    high_risk_neighbors = []
+    for r in relationships:
+        src_id = str(r.get("source_entity_id"))
+        tgt_id = str(r.get("target_entity_id"))
+        if src_id == ent_id:
+            other = all_entities_map.get(tgt_id)
+            if other and float(other.get("risk_score", 0)) >= 0.7:
+                high_risk_neighbors.append(other.get("name"))
+        elif tgt_id == ent_id:
+            other = all_entities_map.get(src_id)
+            if other and float(other.get("risk_score", 0)) >= 0.7:
+                high_risk_neighbors.append(other.get("name"))
+
+    if high_risk_neighbors:
+        contributing_factors.append(f"• Connected to {len(high_risk_neighbors)} high-risk entities ({', '.join(high_risk_neighbors[:3])})")
+
+    # 2. Evidence appearances
+    matched_ev = []
+    code = props.get("entity_id") or props.get("Entity ID")
+    for ev in evidence_docs:
+        text = (ev.get("raw_content") or "") + " " + (ev.get("title") or "")
+        if name.lower() in text.lower() or (code and str(code).lower() in text.lower()):
+            matched_ev.append(ev.get("title", "Evidence"))
+
+    if matched_ev:
+        contributing_factors.append(f"• Appears in {len(matched_ev)} investigation records")
+
+    # 3. Specific role or notes flags
+    role = props.get("role") or props.get("Role / Description")
+    if role:
+        contributing_factors.append(f"• Recorded operational role: {role}")
+
+    # 4. Association with flagged entities/organizations
+    flagged_orgs = [
+        all_entities_map.get(str(r.get("target_entity_id") if str(r.get("source_entity_id")) == ent_id else r.get("source_entity_id")))
+        for r in relationships if (str(r.get("source_entity_id")) == ent_id or str(r.get("target_entity_id")) == ent_id)
+    ]
+    for fo in flagged_orgs:
+        if fo and fo.get("type", "").upper() == "ORGANIZATION" and float(fo.get("risk_score", 0)) >= 0.6:
+            contributing_factors.append(f"• Associated with flagged organization '{fo.get('name')}'")
+            break
+
+    if not contributing_factors:
+        contributing_factors.append("• Elevated threat metric assigned based on intelligence indicators.")
+
+    lines.append("Contributing factors:")
+    lines.extend(contributing_factors)
+
+    if matched_ev:
+        lines.append("\nEvidence:")
+        for ev_title in matched_ev[:5]:
+            lines.append(f"• {ev_title}")
+
+    lines.append("\nSource:\nEntity Database → Active Risk Analysis")
+    lines.append("Confidence:\nHIGH")
+    return "\n".join(lines)
+
+def format_highest_risk_entities_response(
+    entities: List[Dict[str, Any]],
+    relationships: List[Dict[str, Any]]
+) -> str:
+    """Lists and ranks highest-risk entities in active case."""
+    active_ents = [
+        e for e in entities
+        if not (
+            (e.get("properties", {}) or {}).get("is_cleared") is True
+            or e.get("disposition") in ["CLEARED", "INNOCENT"]
+            or (e.get("properties", {}) or {}).get("clearance_status") == "FREE_TO_GO"
+        )
+    ]
+    sorted_ents = sorted(active_ents, key=lambda e: float(e.get("risk_score", 0.0)), reverse=True)
+    high_threats = [e for e in sorted_ents if float(e.get("risk_score", 0.0)) >= 0.7]
+
+    if not high_threats:
+        high_threats = sorted_ents[:5]
+
+    lines = ["HIGHEST-RISK ENTITIES IN ACTIVE CASE\n"]
+    for i, ent in enumerate(high_threats[:6], 1):
+        score = float(ent.get("risk_score", 0.0))
+        level = get_risk_level(score)
+        role = ent.get("properties", {}).get("role") or ent.get("properties", {}).get("Role / Description") or ent.get("type", "Entity")
+        lines.append(f"{i}. {format_entity_link(ent)} — {ent.get('type')}")
+        lines.append(f"   Risk Score: {score:.2f} ({level})")
+        if role:
+            lines.append(f"   Role: {role}")
+        lines.append("")
+
+    lines.append("Source:\nActive Risk Assessment Engine")
+    lines.append("Confidence:\nHIGH")
+    return "\n".join(lines)
+
+def format_case_summary_response(
+    case_doc: Optional[Dict[str, Any]],
+    entities: List[Dict[str, Any]],
+    relationships: List[Dict[str, Any]],
+    evidence_docs: List[Dict[str, Any]]
+) -> str:
+    """Formats complete structured case summary."""
+    case_name = case_doc.get("name", "Active Investigation") if case_doc else "Active Investigation"
+    case_id = str(case_doc.get("_id", "ACTIVE")) if case_doc else "ACTIVE"
+    case_status = case_doc.get("status", "OPEN") if case_doc else "OPEN"
+    created_date = str(case_doc.get("created_at", ""))[:10] if case_doc and case_doc.get("created_at") else datetime.utcnow().strftime("%Y-%m-%d")
+    desc = case_doc.get("description", "Active multi-entity investigation.") if case_doc else "Active investigation."
+
+    lines = ["CASE SUMMARY\n"]
+    lines.append(f"Case: {case_name}")
+    lines.append(f"Case ID: {case_id}")
+    lines.append(f"Status: {case_status}")
+    lines.append(f"Date: {created_date}\n")
+
+    lines.append("Overview:")
+    lines.append(f"{desc}\n")
+
+    persons = [format_entity_link(e) for e in entities if e.get("type", "").upper() == "PERSON"]
+    if persons:
+        lines.append(f"KEY ENTITIES:\n• " + "\n• ".join(persons[:6]) + "\n")
+
+    orgs = [format_entity_link(e) for e in entities if e.get("type", "").upper() == "ORGANIZATION"]
+    if orgs:
+        lines.append(f"KEY ORGANIZATIONS:\n• " + "\n• ".join(orgs[:5]) + "\n")
+
+    locs = [format_entity_link(e) for e in entities if e.get("type", "").upper() == "LOCATION"]
+    if locs:
+        lines.append(f"KEY LOCATIONS:\n• " + "\n• ".join(locs[:5]) + "\n")
+
+    high_risk = [f"{format_entity_link(e)} ({e.get('risk_score', 0):.2f})" for e in entities if float(e.get("risk_score", 0)) >= 0.7]
+    if high_risk:
+        lines.append(f"HIGH-RISK ENTITIES:\n• " + "\n• ".join(high_risk[:5]) + "\n")
+
+    if relationships:
+        ent_map = {str(e["_id"]): e.get("name", "Unknown") for e in entities}
+        imp_rels = []
+        for r in relationships[:5]:
+            s_name = ent_map.get(str(r.get("source_entity_id")), "Unknown")
+            t_name = ent_map.get(str(r.get("target_entity_id")), "Unknown")
+            imp_rels.append(f"• {s_name} — {r.get('type')} → {t_name}")
+        lines.append("IMPORTANT RELATIONSHIPS:\n" + "\n".join(imp_rels) + "\n")
+
+    if evidence_docs:
+        ev_items = [f"• {ev.get('title', 'Evidence Record')}" for ev in evidence_docs[:5]]
+        lines.append("EVIDENCE:\n" + "\n".join(ev_items) + "\n")
+
+    lines.append("CURRENT INVESTIGATION STATUS:")
+    lines.append(f"Active intelligence graph contains {len(entities)} verified entities, {len(relationships)} linkages, and {len(evidence_docs)} evidence records under active forensic review.\n")
+    lines.append("Source:\nActive Case Intelligence Dossier\nConfidence:\nHIGH")
+
+    return "\n".join(lines)
+
+def format_evidence_response(entity: Dict[str, Any], evidence_docs: List[Dict[str, Any]], relationships: List[Dict[str, Any]]) -> str:
+    """Formats evidence records linked to a specific entity."""
+    name = entity.get("name", "Unknown")
+    ent_id = str(entity.get("_id", entity.get("id", "")))
+    props = entity.get("properties", {}) or {}
+    code = props.get("entity_id") or props.get("Entity ID")
+
+    matched_evidence = []
+    for ev in evidence_docs:
+        title = ev.get("title", "Evidence Record")
+        text = (ev.get("raw_content") or "") + " " + title
+        if name.lower() in text.lower() or (code and str(code).lower() in text.lower()):
+            matched_evidence.append(ev)
+
+    if not matched_evidence:
+        return (
+            f"No evidence currently links to {format_entity_link(entity)} in the available case files.\n\n"
+            f"Source:\nCase Evidence Repository\nConfidence:\nHIGH"
+        )
+
+    lines = [f"EVIDENCE LINKED TO {name.upper()}\n"]
+    for ev in matched_evidence[:6]:
+        title = ev.get("title", "Evidence Record")
+        ev_type = ev.get("source_type") or ev.get("file_type") or "Case Document"
+        created_at = str(ev.get("created_at", ""))[:10]
+        content_preview = (ev.get("raw_content") or "").strip()
+        finding = content_preview[:120] + "..." if len(content_preview) > 120 else (content_preview or "Evidentiary record indexed.")
+
+        lines.append(f"{title}")
+        lines.append(f"Type: {ev_type}")
+        if created_at:
+            lines.append(f"Date: {created_at}")
+        lines.append(f"Finding: {finding}\n")
+
+    lines.append("Source:\nCase Evidence Repository\nConfidence:\nHIGH")
+    return "\n".join(lines)
+
+MONTH_MAP = {
+    "jan": "01", "january": "01",
+    "feb": "02", "february": "02",
+    "mar": "03", "march": "03",
+    "apr": "04", "april": "04",
+    "may": "05",
+    "jun": "06", "june": "06",
+    "jul": "07", "july": "07",
+    "aug": "08", "august": "08",
+    "sep": "09", "september": "09",
+    "oct": "10", "october": "10",
+    "nov": "11", "november": "11",
+    "dec": "12", "december": "12"
+}
+
+def match_date_in_event(query_date: str, event_text: str) -> bool:
+    if not query_date or not event_text:
+        return False
+    qd = clean_query_text(query_date)
+    et = clean_query_text(event_text)
+    if qd in et:
+        return True
+
+    m = re.search(r"(\d{1,2})\s+([a-zA-Z]+)|([a-zA-Z]+)\s+(\d{1,2})", query_date)
+    if m:
+        day = m.group(1) or m.group(4)
+        month_name = (m.group(2) or m.group(3)).lower()
+        month_num = MONTH_MAP.get(month_name)
+        if month_num and day:
+            day_padded = day.zfill(2)
+            patterns = [
+                f"-{month_num}-{day_padded}",
+                f"/{month_num}/{day_padded}",
+                f"{day_padded}/{month_num}",
+                f"{month_name[:3]} {day}",
+                f"{day} {month_name[:3]}"
+            ]
+            if any(p.lower() in event_text.lower() for p in patterns):
+                return True
+
+    return False
+
+def format_timeline_response(entity: Optional[Dict[str, Any]], timeline_events: List[Dict[str, Any]], query_date: Optional[str] = None) -> str:
+    """Formats chronological timeline for an entity or the overall case."""
+    if entity:
+        name = entity.get("name", "Unknown")
+        props = entity.get("properties", {}) or {}
+        code = props.get("entity_id") or props.get("Entity ID")
+        filtered_events = [
+            ev for ev in timeline_events
+            if name.lower() in (ev.get("title", "") + " " + ev.get("message", "")).lower() or
+            (code and str(code).lower() in (ev.get("message", "")).lower())
+        ]
+        heading = f"{name.upper()} — TIMELINE"
+    else:
+        filtered_events = timeline_events
+        heading = "CASE TIMELINE"
+
+    if query_date:
+        date_filtered = [
+            ev for ev in filtered_events
+            if match_date_in_event(query_date, str(ev.get("timestamp", "")) + " " + ev.get("title", "") + " " + ev.get("message", ""))
+        ]
+        if date_filtered:
+            filtered_events = date_filtered
+        else:
+            ent_str = f" for {entity.get('name')}" if entity else ""
+            return (
+                f"No chronological timeline events are recorded{ent_str} on '{query_date}' in the active case data.\n\n"
+                f"Source:\nChronological Event Logs\nConfidence:\nHIGH"
+            )
+
+
+    if not filtered_events:
+        ent_str = f" for {entity.get('name')}" if entity else ""
+        return (
+            f"No chronological timeline events are currently recorded{ent_str} in the active case data.\n\n"
+            f"Source:\nChronological Event Logs\nConfidence:\nHIGH"
+        )
+
+    lines = [f"{heading}\n"]
+    for ev in filtered_events[:12]:
+        ts = str(ev.get("timestamp", ""))
+        date_str = ts[:10] if len(ts) >= 10 else "Recorded Date"
+        time_str = ts[11:16] if len(ts) >= 16 else ""
+        title = ev.get("title") or ev.get("message") or "Investigation Event"
+        
+        lines.append(date_str)
+        if time_str:
+            lines.append(time_str)
+        lines.append(f"{title}\n")
+
+    lines.append("Source:\nChronological Event Logs\nConfidence:\nHIGH")
+    return "\n".join(lines)
+
+
+def format_locations_response(
+    entity: Dict[str, Any],
+    relationships: List[Dict[str, Any]],
+    evidence_docs: List[Dict[str, Any]],
+    all_entities_map: Dict[str, Dict[str, Any]]
+) -> str:
+    """Formats locations associated with an entity."""
+    name = entity.get("name", "Unknown")
+    ent_id = str(entity.get("_id", entity.get("id", "")))
+    props = entity.get("properties", {}) or {}
+    
+    locations = []
+    
+    # 1. Connected LOCATION entities
+    for r in relationships:
+        src_id = str(r.get("source_entity_id"))
+        tgt_id = str(r.get("target_entity_id"))
+        other_id = tgt_id if src_id == ent_id else src_id if tgt_id == ent_id else None
+        if other_id:
+            other = all_entities_map.get(other_id)
+            if other and other.get("type", "").upper() == "LOCATION":
+                ev_id = r.get("evidence_ids", [None])[0] if r.get("evidence_ids") else "Relationship Graph"
+                locations.append((other.get("name"), ev_id))
+
+    # 2. Entity city / location property
+    city = props.get("city") or props.get("known_location") or props.get("location")
+    if city and str(city).strip():
+        if not any(loc[0].lower() == str(city).lower() for loc in locations):
+            locations.append((str(city), "Entity Dossier"))
+
+    if not locations:
+        return (
+            f"No location information is currently available for {format_entity_link(entity)} in the active case data.\n\n"
+            f"Source:\nLocation Intelligence & Travel Records\nConfidence:\nHIGH"
+        )
+
+    lines = [f"KNOWN LOCATIONS FOR {name.upper()}\n"]
+    for i, (loc_name, src) in enumerate(locations, 1):
+        lines.append(f"{i}. {loc_name}")
+        lines.append(f"   Source: {src}\n")
+
+    lines.append("Source:\nLocation Intelligence & Travel Records\nConfidence:\nHIGH")
+    return "\n".join(lines)
+
+def format_intelligence_gaps_response(
+    case_doc: Optional[Dict[str, Any]],
+    entities: List[Dict[str, Any]],
+    relationships: List[Dict[str, Any]],
+    evidence_docs: List[Dict[str, Any]]
+) -> str:
+    """Analyzes real active case data to identify priority intelligence gaps and uncorroborated leads."""
+    case_name = case_doc.get("name", "Active Case") if case_doc else "Active Case"
+
+    lines = ["INTELLIGENCE GAPS & MISSING EVIDENCE", "──────────────────────────────────────\n"]
+    lines.append(f"Case: {case_name}\n")
+
+    gaps = []
+    # Check high-risk entities with single connection
+    ent_degrees = {}
+    for r in relationships:
+        s = str(r.get("source_entity_id"))
+        t = str(r.get("target_entity_id"))
+        ent_degrees[s] = ent_degrees.get(s, 0) + 1
+        ent_degrees[t] = ent_degrees.get(t, 0) + 1
+
+    for ent in entities:
+        score = float(ent.get("risk_score", 0.0))
+        eid = str(ent.get("_id", ent.get("id", "")))
+        deg = ent_degrees.get(eid, 0)
+        if score >= 0.7 and deg <= 1:
+            gaps.append(f"• High-risk entity {format_entity_link(ent)} has only {deg} recorded connection. Additional communication & associate records needed.")
+
+    # Check unverified / low-confidence relationships
+    unverified = [r for r in relationships if float(r.get("confidence", 1.0)) < 0.7]
+    if unverified:
+        gaps.append(f"• {len(unverified)} relationship links have confidence below 70% and require corroboration from secondary evidence.")
+
+    # Check entities lacking location data
+    unlocated_persons = [e for e in entities if e.get("type", "").upper() == "PERSON" and not e.get("properties", {}).get("city")]
+    if len(unlocated_persons) >= 3:
+        sample_names = ", ".join([e.get("name") for e in unlocated_persons[:3]])
+        gaps.append(f"• Geographic gap: Key persons ({sample_names}) currently have no verified base of operations or residential logs.")
+
+    if not gaps:
+        gaps.append("• No critical gaps detected. Corroborate high-traffic communication hubs against physical access logs.")
+
+    lines.append("PRIORITY GAPS IDENTIFIED:")
+    lines.extend(gaps)
+
+    lines.append("\nRECOMMENDED INVESTIGATIVE ACTIONS:")
+    lines.append("1. Subpoena communication detail records (CDRs) for key suspects.")
+    lines.append("2. Cross-reference warehouse access timestamps against automated license plate recognition (ALPR).")
+    lines.append("3. Verify beneficial ownership of linked accounts and corporate entities.")
+
+    lines.append("\nSource:\nAutomated Gap Analysis Engine\nConfidence:\nHIGH")
+    return "\n".join(lines)
+
+def format_network_analysis_response(
+    entities: List[Dict[str, Any]],
+    relationships: List[Dict[str, Any]],
+    G: nx.Graph
+) -> str:
+    """Computes real NetworkX network analytics for active case."""
+    lines = ["NETWORK ANALYSIS REPORT", "───────────────────────\n"]
+    lines.append(f"Total Nodes (Entities): {len(entities)}")
+    lines.append(f"Total Edges (Relationships): {len(relationships)}")
+
+    if len(G) > 0 and len(relationships) > 0:
+        density = nx.density(G)
+        lines.append(f"Network Density: {density:.3f}\n")
+
+        degrees = dict(G.degree())
+        top_hubs = sorted(degrees.items(), key=lambda x: x[1], reverse=True)[:5]
+
+        ent_map = {str(e["_id"]): e for e in entities}
+        lines.append("CENTRAL HUBS (BY DEGREE CONNECTIVITY):")
+        for i, (nid, deg) in enumerate(top_hubs, 1):
+            ent = ent_map.get(nid)
+            if ent:
+                lines.append(f"{i}. {format_entity_link(ent)} ({ent.get('type')}) — {deg} direct connections")
+
+    lines.append("\nSource:\nNetworkX Topological Graph Engine\nConfidence:\nHIGH")
+    return "\n".join(lines)
+
+def format_general_knowledge_response(query: str) -> str:
+    """Answers general investigative and conceptual questions with explicit distinction."""
+    q = query.lower()
+    
+    lines = ["GENERAL KNOWLEDGE\n"]
+    if "2-hop" in q or "two-hop" in q:
+        lines.append(
+            "A **2-hop connection** refers to an indirect link between two entities mediated by an intermediate entity (A → B → C).\n\n"
+            "In intelligence and criminal network analysis, 2-hop links are vital for uncovering coordinators, cut-outs, financial intermediaries, and concealed conduits between masterminds and operational agents."
+        )
+    elif "high-risk" in q or "risk score" in q:
+        lines.append(
+            "A **high-risk entity** is an individual, account, vehicle, or organization that exhibits critical threat metrics (typically a risk index ≥ 0.70).\n\n"
+            "Risk scores are determined by factors such as: graph centrality, association with known criminal nodes, frequency of appearance in forensic evidence, and involvement in suspicious financial or logistical anomalies."
+        )
+    elif "network analysis" in q or "link analysis" in q:
+        lines.append(
+            "**Network analysis** is the practice of mapping topological structures and communication pathways between suspects, organizations, locations, and assets.\n\n"
+            "It reveals key operational hubs, bottlenecks, single points of failure, and covert syndicates that are not obvious through isolated document review."
+        )
+    elif "who are you" in q or "what are you" in q:
+        lines.append(
+            "I am the **NEXUS AI Agent**, an intelligence investigation assistant.\n\n"
+            "I analyze active case data, cross-examine evidence, trace shortest relationship paths, calculate threat risk scores, and reconstruct chronological timelines."
+        )
+    elif "what can you do" in q or "help" in q:
+        lines.append(
+            "I can assist you with the active investigation by performing:\n"
+            "• **Entity Profiles**: Ask 'Who is [Name]?' to inspect dossiers.\n"
+            "• **Relationship Tracing**: Ask 'Who is [Name] connected to?' or 'Find path between A and B'.\n"
+            "• **Risk Analysis**: Ask 'Why is [Name] high risk?' or 'Who are the highest-risk entities?'.\n"
+            "• **Evidence Lookup**: Ask 'What evidence mentions [Name]?'.\n"
+            "• **Timeline Queries**: Ask 'Show timeline of [Name]'.\n"
+            "• **Case Summaries**: Ask 'Summarize this case'."
+        )
+    else:
+        lines.append(
+            "Hello! I am the **NEXUS AI Agent**. I am connected to your active investigation case.\n\n"
+            "Ask me about any suspect, organization, relationship path, risk score, or evidence record in this case."
+        )
+
+    lines.append("\nNote: This is a general investigative methodology explanation, not specific case findings.")
+    return "\n".join(lines)
+
+# ==============================================================================
+# 6. MAIN INVESTIGATOR ORCHESTRATOR
+# ==============================================================================
+
+async def run_ai_investigator(
+    query: str, 
+    case_id: str, 
+    db, 
+    current_user, 
+    history_context: str = "",
+    history_list: Optional[List[Dict[str, str]]] = None
+) -> Dict[str, Any]:
     """
-    Calls the local Ollama LLM.
+    Main entry point for NEXUS AI Agent.
+    Strictly follows 'Retrieve First, Answer Second'.
     """
-    from app.ai.local_llm import generate
-    try:
-        kwargs = {}
-        if model: kwargs["model"] = model
-        if format: kwargs["format"] = format
-        response = await generate(system_prompt, user_prompt, **kwargs)
-        return response
-    except Exception as e:
-        err_str = str(e)
-        print(f"Local LLM inference failure: {err_str}")
-        if "LOCAL_AI_UNAVAILABLE" in err_str or "LOCAL_AI_TIMEOUT" in err_str:
-            return f"Analysis unavailable: {err_str}"
-        return ""
+    query_str = query.strip()
+    if not query_str:
+        return {"answer": "Please enter an investigation question.", "actions": [], "supporting_evidence": []}
+
+    # Normalize history
+    if history_list is None:
+        history_list = []
+        if history_context:
+            for line in history_context.split("\n"):
+                if line.startswith("User: "):
+                    history_list.append({"sender": "user", "text": line[6:]})
+                elif line.startswith("AI: "):
+                    history_list.append({"sender": "ai", "text": line[4:]})
+
+    # Detect intent
+    intent = detect_request_intent(query_str)
+
+    # 1. OUT OF SCOPE
+    if intent == "OUT_OF_SCOPE":
+        return {
+            "answer": "I’m the NEXUS AI Agent, an investigation intelligence assistant. I analyze cases, evidence, entities, relationships, and network graphs, but that request is outside my area of expertise.",
+            "actions": [],
+            "supporting_evidence": []
+        }
+
+    # 2. GENERAL KNOWLEDGE / SYSTEM HELP
+    if intent == "GENERAL_KNOWLEDGE":
+        return {
+            "answer": format_general_knowledge_response(query_str),
+            "actions": [],
+            "supporting_evidence": []
+        }
+
+    # 3. DATE & TIME
+    if intent == "CURRENT_DATE_TIME":
+        from datetime import datetime
+        now = datetime.now()
+        return {
+            "answer": f"Current system date is {now.strftime('%A, %d %B %Y')} and local server time is {now.strftime('%H:%M:%S')}.",
+            "actions": [],
+            "supporting_evidence": []
+        }
+
+    # 4. ACTIVE CASE DATA RETRIEVAL (STRICTLY SCOPED)
+    case_doc = None
+    if case_id and case_id != "all":
+        try:
+            if ObjectId.is_valid(case_id):
+                case_doc = await db["cases"].find_one({"$or": [{"_id": ObjectId(case_id)}, {"_id": case_id}, {"caseId": case_id}]})
+            else:
+                case_doc = await db["cases"].find_one({"$or": [{"_id": case_id}, {"caseId": case_id}]})
+        except Exception as e:
+            print(f"Error querying case doc: {e}")
+
+    # Fetch entities and relationships
+    if case_id and case_id != "all":
+        case_filter = {"$or": [{"case_id": case_id}, {"caseId": case_id}]}
+    else:
+        case_filter = {}
+
+    entities = await db["entities"].find(case_filter).to_list(None) or []
+    relationships = await db["relationships"].find(case_filter).to_list(None) or []
+    evidence_docs = await db["evidence"].find(case_filter).to_list(None) or []
+    
+    # Load timeline events
+    timeline_records = await db["timeline"].find(case_filter).to_list(None) or []
+    timeline_events = []
+    for tl in timeline_records:
+        ts = str(tl.get("timestamp") or tl.get("date") or "")
+        title = tl.get("title") or tl.get("event") or ""
+        msg = tl.get("description") or tl.get("message") or ""
+        timeline_events.append({"timestamp": ts, "title": title, "message": msg})
+
+    # Add temporal relationships and entities to timeline
+    entity_map = {str(e["_id"]): e for e in entities}
+    for r in relationships:
+        props = r.get("properties") or {}
+        ts = props.get("timestamp") or props.get("date") or props.get("time")
+        if ts:
+            s_name = entity_map.get(str(r.get("source_entity_id")), {}).get("name", "Unknown")
+            t_name = entity_map.get(str(r.get("target_entity_id")), {}).get("name", "Unknown")
+            timeline_events.append({
+                "timestamp": str(ts),
+                "title": f"{r.get('type', 'LINK')} Record",
+                "message": f"{s_name} linked to {t_name} via {r.get('type')}"
+            })
+
+    timeline_events.sort(key=lambda x: str(x.get("timestamp", "")))
+
+    # Build NetworkX graph
+    G = build_graph(entities, relationships)
+
+    # 5. CASE SUMMARY ROUTE
+    if intent == "CASE_SUMMARY":
+        if not case_id or case_id == "all":
+            return {
+                "answer": "Please select a specific active case to view its complete summary.",
+                "actions": [],
+                "supporting_evidence": []
+            }
+        ans = format_case_summary_response(case_doc, entities, relationships, evidence_docs)
+        return {"answer": ans, "actions": [], "supporting_evidence": ["Active Case Intelligence Dossier"]}
+
+    # 6. MISSING EVIDENCE / INTELLIGENCE GAPS
+    if intent == "EVIDENCE_GAP":
+        ans = format_intelligence_gaps_response(case_doc, entities, relationships, evidence_docs)
+        return {"answer": ans, "actions": [], "supporting_evidence": ["Automated Gap Analysis Engine"]}
+
+    # 7. NETWORK ANALYSIS ROUTE
+    if intent == "NETWORK_ANALYSIS":
+        ans = format_network_analysis_response(entities, relationships, G)
+        return {"answer": ans, "actions": [], "supporting_evidence": ["NetworkX Graph Engine"]}
+
+    # 8. CONNECTION PATH / SHORTEST PATH ROUTE
+    if intent == "CONNECTION_PATH":
+        # Extract the two entities from query
+        path_match = re.search(r"(?:between|from)\s+([a-zA-Z0-9\s\.\-_]+?)\s+(?:and|to)\s+([a-zA-Z0-9\s\.\-_]+)", query_str, flags=re.IGNORECASE)
+        if not path_match:
+            path_match = re.search(r"how is\s+([a-zA-Z0-9\s\.\-_]+?)\s+connected to\s+([a-zA-Z0-9\s\.\-_]+)", query_str, flags=re.IGNORECASE)
+
+        if path_match:
+            name1 = extract_target_name(path_match.group(1))
+            name2 = extract_target_name(path_match.group(2))
+
+            matches1, amb1 = search_entities_fuzzy(entities, name1)
+            matches2, amb2 = search_entities_fuzzy(entities, name2)
+
+            if amb1:
+                return {"answer": format_disambiguation_response(matches1), "actions": [], "supporting_evidence": []}
+            if amb2:
+                return {"answer": format_disambiguation_response(matches2), "actions": [], "supporting_evidence": []}
+
+            if not matches1:
+                return {"answer": format_entity_not_found_response(name1), "actions": [], "supporting_evidence": []}
+            if not matches2:
+                return {"answer": format_entity_not_found_response(name2), "actions": [], "supporting_evidence": []}
+
+            ent1 = matches1[0]
+            ent2 = matches2[0]
+            start_id = str(ent1["_id"])
+            target_id = str(ent2["_id"])
+
+            path = find_shortest_path(G, start_id, target_id)
+            ans = format_connection_path_response(ent1, ent2, path, relationships, entity_map)
+            
+            actions = []
+            if path:
+                actions.append({"type": "TRACE_PATH", "source": start_id, "target": target_id, "scope": case_id})
+
+            return {"answer": ans, "actions": actions, "supporting_evidence": ["Network Graph Traversal"]}
+
+        # If user simply clicked quick action or didn't specify two names:
+        return {
+            "answer": (
+                "To trace the shortest known path, please specify two entities (for example: "
+                f"'Find connection between [Entity A] and [Entity B]')."
+            ),
+            "actions": [],
+            "supporting_evidence": []
+        }
+
+    # 9. RISK ANALYSIS ROUTE (HIGHEST RISK OR SPECIFIC ENTITY)
+    if intent == "RISK_ANALYSIS":
+        # Check if user asked about highest risk globally
+        if any(w in query_str.lower() for w in ["highest", "most dangerous", "top threats", "critical entities"]):
+            ans = format_highest_risk_entities_response(entities, relationships)
+            return {
+                "answer": ans,
+                "actions": [{"type": "FILTER_RISK", "min_risk": 0.7, "scope": case_id}],
+                "supporting_evidence": ["Active Risk Assessment Engine"]
+            }
+
+    # 10. ENTITY RESOLUTION (FOR PROFILE, RELATIONSHIPS, RISK, EVIDENCE, TIMELINE, LOCATIONS)
+    target_name = extract_target_name(query_str)
+    resolved_entity = None
+
+    # Try pronoun and chat memory resolution if target name is a pronoun or empty
+    resolved_entity = resolve_subject_from_history(query_str, history_list, entities)
+
+    if not resolved_entity and target_name:
+        matches, is_ambiguous = search_entities_fuzzy(entities, target_name)
+        if is_ambiguous:
+            return {
+                "answer": format_disambiguation_response(matches),
+                "actions": [],
+                "supporting_evidence": []
+            }
+        if matches:
+            resolved_entity = matches[0]
+
+    # If entity was expected but not found
+    if not resolved_entity and target_name and intent in ["ENTITY_PROFILE", "ENTITY_RELATIONSHIPS", "RISK_ANALYSIS", "EVIDENCE_LOOKUP", "TIMELINE_LOOKUP", "GEOGRAPHIC_INFO"]:
+        # Guard against generic words
+        generic_words = {"case", "investigation", "all", "evidence", "risk", "status", "overview", "data", "summary"}
+        if target_name.lower() not in generic_words:
+            return {
+                "answer": format_entity_not_found_response(target_name),
+                "actions": [],
+                "supporting_evidence": []
+            }
+
+    # If we have an entity, execute the specific intent:
+    if resolved_entity:
+        ent_id_str = str(resolved_entity["_id"])
+
+        if intent == "ENTITY_RELATIONSHIPS":
+            # Check for filter (e.g. "communicate with", "organizations")
+            filter_type = "ORGANIZATION" if "organization" in query_str.lower() else "COMMUNICATES_WITH" if "communicate" in query_str.lower() else None
+            ans = format_relationships_response(resolved_entity, relationships, entity_map, G, filter_type)
+            return {"answer": ans, "actions": [{"type": "FOCUS_NODE", "node_id": ent_id_str, "scope": case_id}], "supporting_evidence": ["Case Relationship Graph"]}
+
+        elif intent == "RISK_ANALYSIS":
+            ans = format_risk_analysis_response(resolved_entity, relationships, evidence_docs, entity_map)
+            return {"answer": ans, "actions": [{"type": "FOCUS_NODE", "node_id": ent_id_str, "scope": case_id}], "supporting_evidence": ["Active Risk Analysis"]}
+
+        elif intent == "EVIDENCE_LOOKUP":
+            ans = format_evidence_response(resolved_entity, evidence_docs, relationships)
+            return {"answer": ans, "actions": [], "supporting_evidence": ["Case Evidence Repository"]}
+
+        elif intent == "TIMELINE_LOOKUP":
+            date_match = re.search(r"on\s+(\d{1,2}(?:st|nd|rd|th)?\s+[a-zA-Z]+(?:\s+\d{2,4})?|\d{4}-\d{2}-\d{2})", query_str, re.IGNORECASE)
+            query_date = date_match.group(1) if date_match else None
+            ans = format_timeline_response(resolved_entity, timeline_events, query_date)
+            return {"answer": ans, "actions": [], "supporting_evidence": ["Chronological Event Logs"]}
+
+        elif intent == "GEOGRAPHIC_INFO":
+            ans = format_locations_response(resolved_entity, relationships, evidence_docs, entity_map)
+            return {"answer": ans, "actions": [], "supporting_evidence": ["Location Intelligence & Travel Records"]}
+
+        else: # ENTITY_PROFILE (Default when an entity is identified)
+            ans = format_entity_profile_response(resolved_entity, relationships, evidence_docs, timeline_events, entity_map)
+            return {"answer": ans, "actions": [{"type": "FOCUS_NODE", "node_id": ent_id_str, "scope": case_id}], "supporting_evidence": ["Entity Database → Active Case Graph"]}
+
+    # Overall case timeline if asked without entity
+    if intent == "TIMELINE_LOOKUP":
+        date_match = re.search(r"on\s+(\d{1,2}(?:st|nd|rd|th)?\s+[a-zA-Z]+(?:\s+\d{2,4})?|\d{4}-\d{2}-\d{2})", query_str, re.IGNORECASE)
+        query_date = date_match.group(1) if date_match else None
+        ans = format_timeline_response(None, timeline_events, query_date)
+        return {"answer": ans, "actions": [], "supporting_evidence": ["Chronological Event Logs"]}
+
+
+    # Fallback to general inquiry or case summary
+    if len(entities) > 0:
+        ans = format_case_summary_response(case_doc, entities, relationships, evidence_docs)
+        return {"answer": ans, "actions": [], "supporting_evidence": ["Active Case Intelligence Dossier"]}
+
+    return {
+        "answer": "I couldn't locate relevant records for that question in the active case files.",
+        "actions": [],
+        "supporting_evidence": []
+    }

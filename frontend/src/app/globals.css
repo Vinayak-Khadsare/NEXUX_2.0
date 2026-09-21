@@ -433,11 +433,13 @@ body {
   background-color: var(--surface-hover);
 }
 .alert-card.resolved {
-  opacity: 0.6;
-  filter: grayscale(100%);
+  opacity: 0.95;
+  border-color: rgba(16, 185, 129, 0.28);
+  background: linear-gradient(180deg, rgba(16, 185, 129, 0.03) 0%, var(--surface-primary) 100%);
 }
 .alert-card.resolved:hover {
-  filter: grayscale(0%);
+  border-color: rgba(16, 185, 129, 0.45);
+  box-shadow: 0 0 15px rgba(16, 185, 129, 0.08);
 }
 
 .light .alert-card:hover {

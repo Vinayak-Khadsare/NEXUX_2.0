@@ -354,7 +354,7 @@ export default function InvestigatePage() {
   };
 
   const handleGenerateStory = () => {
-    callAI("Generate a chronological narrative of this case based on the relationships and events.", async (ans: string) => {
+    callAI("Generate the CHRONOLOGICAL SEQUENCE OF EVENTS for this case based strictly on active evidence, records, and relationships. Display each event in strict chronological order with: Date, Time (or 'Time: Not specified'), concise factual event description, relevant entities, and evidence source reference. Do NOT include separate Executive Summary, Key Entities, or Conclusion sections.", async (ans: string) => {
       setStoryNarrative(ans);
       if (ans && activeCaseId) {
         const token = localStorage.getItem("token");

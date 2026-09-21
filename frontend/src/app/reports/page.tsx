@@ -7,6 +7,7 @@ import dynamic from "next/dynamic";
 const PDFDownloadLink = dynamic(() => import('@react-pdf/renderer').then(mod => mod.PDFDownloadLink), { ssr: false });
 import CaseReportPDF from '@/components/reports/CaseReportPDF';
 import DownloadButton from '@/components/ui/DownloadButton';
+import { generateNetworkReportSnapshot } from '@/lib/networkSnapshot';
 
 export default function ReportsPage() {
   const { activeCaseId, activeCase } = useCase();
@@ -14,6 +15,7 @@ export default function ReportsPage() {
   const [entities, setEntities] = useState<any[]>([]);
   const [relationships, setRelationships] = useState<any[]>([]);
   const [evidenceList, setEvidenceList] = useState<any[]>([]);
+  const [networkSnapshot, setNetworkSnapshot] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -28,19 +30,39 @@ export default function ReportsPage() {
     try {
       setLoading(true);
       setError(null);
-      const [res, entRes, relRes, evRes] = await Promise.all([
+      const [res, entRes, relRes, evRes, netRes] = await Promise.all([
         fetch(getApiUrl(`/api/reports?case_id=${activeCaseId}`), { headers: { Authorization: `Bearer ${token}` } }),
         fetch(getApiUrl(`/api/entities?case_id=${activeCaseId}`), { headers: { Authorization: `Bearer ${token}` } }),
         fetch(getApiUrl(`/api/relationships?case_id=${activeCaseId}`), { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(getApiUrl(`/api/evidence/case/${activeCaseId}`), { headers: { Authorization: `Bearer ${token}` } })
+        fetch(getApiUrl(`/api/evidence/case/${activeCaseId}`), { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(getApiUrl(`/api/network/${activeCaseId}`), { headers: { Authorization: `Bearer ${token}` } }).catch(() => null)
       ]);
 
       if (res.ok) {
         const data = await res.json();
+        let ents: any[] = [];
+        let rels: any[] = [];
+        let evList: any[] = [];
+        let gData: any = null;
+
+        if (entRes.ok) ents = await entRes.json();
+        if (relRes.ok) rels = await relRes.json();
+        if (evRes.ok) evList = await evRes.json();
+        if (netRes && netRes.ok) gData = await netRes.json();
+
+        setEntities(ents);
+        setRelationships(rels);
+        setEvidenceList(evList);
+
+        // Generate automatic 2D network snapshot for report
+        const graphInput = (gData && Array.isArray(gData.nodes) && gData.nodes.length > 0)
+          ? gData
+          : { entities: ents, relationships: rels };
+        const snapshot = generateNetworkReportSnapshot(graphInput);
+        setNetworkSnapshot(snapshot);
+        data.network_snapshot = snapshot;
+
         setReportData(data);
-        if (entRes.ok) setEntities(await entRes.json());
-        if (relRes.ok) setRelationships(await relRes.json());
-        if (evRes.ok) setEvidenceList(await evRes.json());
       } else {
         let errText = "Failed to generate report";
         try {
@@ -59,7 +81,27 @@ export default function ReportsPage() {
     }
   }, [activeCaseId]);
 
+  // Ensure network snapshot is ready whenever entities or relationships update
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (entities.length > 0) {
+      const snap = generateNetworkReportSnapshot({ entities, relationships });
+      if (snap) {
+        setNetworkSnapshot(snap);
+      }
+    }
+  }, [entities, relationships]);
 
+  const groupedEvents = React.useMemo(() => {
+    const rawEvents = reportData?.chronological_events || [];
+    const groups: { [key: string]: any[] } = {};
+    for (const ev of rawEvents) {
+      const dKey = ev.display_date || ev.date || 'DATE UNSPECIFIED';
+      if (!groups[dKey]) groups[dKey] = [];
+      groups[dKey].push(ev);
+    }
+    return Object.entries(groups).map(([displayDate, events]) => ({ displayDate, events }));
+  }, [reportData]);
 
   if (!activeCaseId) {
     return (
@@ -99,7 +141,8 @@ export default function ReportsPage() {
           </button>
           {reportData && typeof window !== "undefined" && (
             <PDFDownloadLink
-              document={<CaseReportPDF caseData={activeCase} entities={entities} relationships={relationships} evidence={evidenceList} reportData={reportData} />}
+              key={`${activeCaseId}_${networkSnapshot ? 'has_snap' : 'no_snap'}_${entities.length}_${relationships.length}`}
+              document={<CaseReportPDF caseData={activeCase} entities={entities} relationships={relationships} evidence={evidenceList} reportData={reportData} networkSnapshot={networkSnapshot} />}
               fileName={`NEXUS_Report_${activeCase?.name.replace(/\s+/g, '_')}.pdf`}
               className="inline-block"
             >
@@ -199,16 +242,49 @@ export default function ReportsPage() {
                 </p>
               </section>
 
-              {/* Section 2b: Case Chronological Narrative (Only displayed if generated by investigator) */}
-              {reportData.ai_narrative && (
+              {/* Section 2b: Chronological Sequence of Events */}
+              {groupedEvents.length > 0 && (
                 <section className="bg-[var(--surface-primary)] p-6 rounded-2xl border border-[var(--border-primary)] shadow-sm print:shadow-none print:border-black/20 flex-1">
                   <h3 className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider flex items-center gap-2 mb-4 border-b border-[var(--border-primary)] pb-2">
-                    <i className="fa-solid fa-book-open text-[var(--accent-primary)]"></i> 2b. Case Chronological Narrative
+                    <i className="fa-solid fa-clock-rotate-left text-[var(--accent-primary)]"></i> 2b. Chronological Sequence of Events
                   </h3>
-                  <div className="p-4 bg-[var(--surface-secondary)] border border-[var(--border-primary)] rounded-xl">
-                    <p className="text-sm text-[var(--text-primary)] print:text-black leading-relaxed whitespace-pre-wrap font-mono">
-                      {reportData.ai_narrative.replace(/\*\*/g, '').replace(/^#+\s*/gm, '').replace(/₹/g, 'INR ')}
-                    </p>
+                  <div className="space-y-6">
+                    {groupedEvents.map((grp, gIdx) => (
+                      <div key={gIdx} className="space-y-3">
+                        <div className="flex items-center gap-2">
+                          <span className="px-2.5 py-1 bg-[var(--surface-secondary)] text-[var(--accent-primary)] text-xs font-black uppercase tracking-wider rounded border border-[var(--border-primary)]">
+                            {grp.displayDate}
+                          </span>
+                          <div className="flex-1 border-t border-[var(--border-primary)] opacity-50" />
+                        </div>
+                        <div className="space-y-3 pl-3 border-l-2 border-[var(--accent-primary)] ml-2">
+                          {grp.events.map((evt: any, eIdx: number) => (
+                            <div key={eIdx} className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <span className={`text-xs font-bold font-mono ${evt.time?.includes('Not specified') ? 'text-[var(--text-muted)] italic' : 'text-[var(--accent-primary)]'}`}>
+                                  {evt.time || 'Time: Not specified'}
+                                </span>
+                              </div>
+                              <p className="text-sm text-[var(--text-primary)] font-medium leading-snug">
+                                {evt.description}
+                              </p>
+                              {evt.entities && evt.entities.length > 0 && (
+                                <p className="text-xs text-[var(--text-secondary)]">
+                                  <span className="font-semibold text-[var(--text-primary)]">Relevant Entities: </span>
+                                  {evt.entities.join(', ')}
+                                </p>
+                              )}
+                              {evt.source && (
+                                <p className="text-xs text-[var(--text-muted)] italic">
+                                  <span className="font-semibold not-italic text-[var(--text-secondary)]">Source: </span>
+                                  {evt.source.replace(/^Source:\s*/i, '')}
+                                </p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </section>
               )}
@@ -272,6 +348,35 @@ export default function ReportsPage() {
                 <h3 className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider flex items-center gap-2 mb-4 border-b border-[var(--border-primary)] pb-2">
                   <i className="fa-solid fa-diagram-project text-[var(--accent-primary)]"></i> 5. Network Analysis
                 </h3>
+
+                {/* 2D Network Snapshot Visualization */}
+                <div className="mb-4 space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider">
+                      Network Visualization
+                    </span>
+                    <span className="text-[9px] font-mono text-[var(--accent-primary)] uppercase bg-[var(--surface-secondary)] px-1.5 py-0.5 rounded border border-[var(--border-primary)]">
+                      2D Auto-Layout
+                    </span>
+                  </div>
+                  {networkSnapshot ? (
+                    <div className="flex flex-col items-center gap-1.5 bg-[var(--surface-secondary)] p-2 rounded-xl border border-[var(--border-primary)]">
+                      <img
+                        src={networkSnapshot}
+                        alt="Investigation Network Topology Snapshot"
+                        className="w-full h-auto max-h-[320px] object-contain rounded-lg border border-[var(--border-primary)] bg-white shadow-sm"
+                      />
+                      <span className="text-[10px] text-[var(--text-muted)] italic text-center">
+                        Figure 1: Entity relationship network derived from the active investigation case.
+                      </span>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-[var(--text-muted)] italic bg-[var(--surface-secondary)] p-3 rounded-lg border border-[var(--border-primary)]">
+                      No network visualization available. No entity relationships were identified in the current case.
+                    </p>
+                  )}
+                </div>
+
                 <div className="space-y-3">
                   <div className="flex justify-between text-sm">
                     <span className="text-[var(--text-secondary)]">Total Nodes</span>

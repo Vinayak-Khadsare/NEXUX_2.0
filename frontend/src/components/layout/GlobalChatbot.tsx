@@ -19,11 +19,37 @@ export default function GlobalChatbot() {
   const [inputValue, setInputValue] = useState("");
   const [sending, setSending] = useState(false);
   const [caseEntities, setCaseEntities] = useState<any[]>([]);
+  const [inspectingEntity, setInspectingEntity] = useState<any | null>(null);
+  const [inspectingLoading, setInspectingLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const getApiUrl = (path: string) => {
     const baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
     return `${baseUrl}${path}`;
+  };
+
+  const handleEntityClick = async (entId: string) => {
+    if (!entId) return;
+    const found = caseEntities.find((e) => e._id === entId || e.id === entId);
+    if (found) {
+      setInspectingEntity(found);
+      return;
+    }
+    const token = localStorage.getItem("token");
+    setInspectingLoading(true);
+    try {
+      const res = await fetch(getApiUrl(`/api/entities/${entId}?case_id=${activeCaseId}`), {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setInspectingEntity(data);
+      }
+    } catch (e) {
+      console.error("Failed to fetch entity details:", e);
+    } finally {
+      setInspectingLoading(false);
+    }
   };
 
   // Scroll to bottom when messages update or panel opens
@@ -298,11 +324,38 @@ export default function GlobalChatbot() {
                   }`}>
                     {msg.sender === "ai" ? (
                       <div className="prose prose-invert prose-sm max-w-none text-[12px] prose-p:leading-relaxed prose-headings:text-white prose-a:text-blue-400 marker:text-zinc-500 prose-ul:my-1.5 prose-li:my-0.5">
-                        <ReactMarkdown>{msg.text}</ReactMarkdown>
+                        <ReactMarkdown
+                          components={{
+                            a: ({ href, children, ...props }) => {
+                              if (href && (href.startsWith("entity:") || href.startsWith("#entity:"))) {
+                                const entId = href.replace(/^#?entity:/, "");
+                                return (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      handleEntityClick(entId);
+                                    }}
+                                    className="inline-flex items-center gap-1 font-semibold text-blue-400 hover:text-blue-300 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 hover:border-blue-400 px-1.5 py-0.5 rounded text-[11px] align-baseline mx-0.5 cursor-pointer transition-colors shadow-xs"
+                                    title="Inspect Entity Dossier"
+                                  >
+                                    <i className="fa-solid fa-fingerprint text-[9px] text-blue-400/80"></i>
+                                    <span>{children}</span>
+                                  </button>
+                                );
+                              }
+                              return <a href={href} target="_blank" rel="noopener noreferrer" {...props}>{children}</a>;
+                            }
+                          }}
+                        >
+                          {msg.text}
+                        </ReactMarkdown>
                       </div>
                     ) : (
                       <p className="whitespace-pre-wrap">{msg.text}</p>
                     )}
+
 
                     {msg.evidence && msg.evidence.length > 0 && (
                       <div className="mt-3.5 pt-3 border-t border-white/10 text-[9px] font-mono text-zinc-400 bg-zinc-950/30 -mx-4 -mb-4 px-4 pb-3">
@@ -394,8 +447,84 @@ export default function GlobalChatbot() {
             </form>
           </div>
 
+          {/* Inspecting Entity Details Drawer */}
+          {inspectingEntity && (
+            <div className="absolute inset-x-0 bottom-0 top-[60px] bg-zinc-950/98 backdrop-blur-xl z-30 p-5 flex flex-col border-t border-white/10 animate-in slide-in-from-bottom duration-200">
+              <div className="flex justify-between items-start pb-3 border-b border-white/10 shrink-0">
+                <div>
+                  <span className="px-2 py-0.5 text-[9px] font-extrabold bg-blue-500/10 border border-blue-500/30 text-blue-400 rounded-full tracking-wider uppercase">
+                    {inspectingEntity.type || "ENTITY"}
+                  </span>
+                  <h3 className="text-base font-extrabold text-white mt-1.5 flex items-center gap-2">
+                    {inspectingEntity.name}
+                  </h3>
+                </div>
+                <button
+                  onClick={() => setInspectingEntity(null)}
+                  className="w-7 h-7 flex items-center justify-center rounded-md text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                  title="Close Inspector"
+                >
+                  <i className="fa-solid fa-xmark text-sm"></i>
+                </button>
+              </div>
+
+              {/* Risk Level gauge */}
+              <div className="my-3 p-3 rounded-xl bg-zinc-900/60 border border-white/5 flex items-center justify-between gap-3 shrink-0">
+                <span className="text-[10px] font-bold uppercase text-zinc-400">Risk Assessment</span>
+                <div className="flex items-center gap-2">
+                  <span className={`text-[11px] font-mono font-bold ${
+                    (inspectingEntity.risk_score || 0) >= 0.7 ? "text-red-400" : (inspectingEntity.risk_score || 0) >= 0.4 ? "text-amber-400" : "text-emerald-400"
+                  }`}>
+                    {((inspectingEntity.risk_score || 0) * 100).toFixed(0)}% ({(inspectingEntity.risk_score || 0).toFixed(2)})
+                  </span>
+                  <span className={`px-1.5 py-0.5 text-[9px] font-bold rounded ${
+                    (inspectingEntity.risk_score || 0) >= 0.7 ? "bg-red-500/20 text-red-300" : (inspectingEntity.risk_score || 0) >= 0.4 ? "bg-amber-500/20 text-amber-300" : "bg-emerald-500/20 text-emerald-300"
+                  }`}>
+                    {(inspectingEntity.risk_score || 0) >= 0.7 ? "HIGH" : (inspectingEntity.risk_score || 0) >= 0.4 ? "MEDIUM" : "LOW"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Properties preview */}
+              <div className="flex-1 overflow-y-auto space-y-2 pr-1 text-xs">
+                <h4 className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1">Dossier Attributes</h4>
+                {Object.entries(inspectingEntity.properties || {}).length === 0 ? (
+                  <p className="text-zinc-500 italic text-[11px]">No additional attributes recorded in this case.</p>
+                ) : (
+                  Object.entries(inspectingEntity.properties || {}).map(([k, v]) => (
+                    <div key={k} className="p-2 rounded-lg bg-zinc-900/40 border border-white/5 flex justify-between gap-2">
+                      <span className="text-zinc-400 font-mono text-[10px]">{k}</span>
+                      <span className="text-white font-semibold text-[11px] text-right break-words max-w-[60%]">{String(v)}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Action Navigation Buttons */}
+              <div className="pt-3 border-t border-white/10 flex gap-2 shrink-0">
+                <button
+                  onClick={() => {
+                    window.location.href = `/entities?id=${inspectingEntity._id || inspectingEntity.id}`;
+                  }}
+                  className="flex-1 py-2 px-3 bg-zinc-800 hover:bg-blue-600 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer border border-white/10 shadow-sm"
+                >
+                  <i className="fa-solid fa-address-card text-[11px]"></i> View in Directory
+                </button>
+                <button
+                  onClick={() => {
+                    window.location.href = `/investigate?src=${inspectingEntity._id || inspectingEntity.id}`;
+                  }}
+                  className="flex-1 py-2 px-3 bg-blue-600/20 hover:bg-blue-600 text-blue-300 hover:text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer border border-blue-500/30 shadow-sm"
+                >
+                  <i className="fa-solid fa-diagram-project text-[11px]"></i> Trace in 3D
+                </button>
+              </div>
+            </div>
+          )}
+
         </div>
       )}
+
 
     </div>
   );
