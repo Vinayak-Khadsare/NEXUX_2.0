@@ -22,7 +22,7 @@
   <a href="#-technical-architecture"><img src="https://img.shields.io/badge/Backend-FastAPI%20%7C%20Python%203.12-009688?style=for-the-badge&logo=fastapi&logoColor=white" alt="FastAPI"></a>
   <a href="#-technical-architecture"><img src="https://img.shields.io/badge/Storage-MongoDB%20%7C%20ChromaDB-green?style=for-the-badge&logo=mongodb&logoColor=white" alt="MongoDB"></a>
   <a href="#-quick-start"><img src="https://img.shields.io/badge/Deployment-Docker%20%7C%20Zero--Terminal-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker"></a>
-  <a href="#-tests--validation"><img src="https://img.shields.io/badge/Pipeline%20Tests-11%2F11%20Passed-10B981?style=for-the-badge&logo=pytest&logoColor=white" alt="Tests"></a>
+  <a href="#-key-capabilities"><img src="https://img.shields.io/badge/Security-Case%20Isolated-red?style=for-the-badge&logo=auth0&logoColor=white" alt="Security"></a>
 </p>
 
 <!-- QUICK NAVIGATION -->
@@ -290,32 +290,6 @@ JWT_SECRET=super_secret_jwt_key_sih_2026
 NEXUS_LOCAL_AI_URL=http://localhost:11434
 NEXUS_LOCAL_AI_MODEL=qwen2.5:7b
 FRONTEND_URL=http://localhost:3000
-```
-
----
-
-## 🧪 Tests & Validation
-
-NEXUS includes automated test suites covering graph traversal, intent classification, and evidence reasoning:
-
-```bash
-cd backend
-.\venv\Scripts\python -m pytest tests/test_investigator_pipeline.py -v
-```
-
-```text
-tests/test_investigator_pipeline.py::test_clean_query_text PASSED               [  9%]
-tests/test_investigator_pipeline.py::test_extract_target_name PASSED            [ 18%]
-tests/test_investigator_pipeline.py::test_resolve_entity_alias PASSED           [ 27%]
-tests/test_investigator_pipeline.py::test_format_entity_link PASSED             [ 36%]
-tests/test_investigator_pipeline.py::test_format_entity_profile PASSED          [ 45%]
-tests/test_investigator_pipeline.py::test_format_relationships PASSED           [ 54%]
-tests/test_investigator_pipeline.py::test_format_path_response PASSED           [ 63%]
-tests/test_investigator_pipeline.py::test_format_case_summary PASSED            [ 72%]
-tests/test_investigator_pipeline.py::test_evidence_gaps PASSED                  [ 81%]
-tests/test_investigator_pipeline.py::test_end_to_end_agent PASSED               [ 90%]
-tests/test_investigator_pipeline.py::test_all_cases_aggregation PASSED          [100%]
-============================== 11 passed in 13.00s ==============================
 ```
 
 ---

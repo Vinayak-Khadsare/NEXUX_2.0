@@ -80,7 +80,7 @@
 
     <g class="log-line-5" transform="translate(0, 166)">
       <text x="0" y="0" fill="#10B981" font-weight="700">[✓] [4/5] FastAPI Intelligence Core</text>
-      <text x="320" y="0" fill="#38BDF8">&#8594; http://localhost:8000 (Docs: /docs [TESTS 11/11 PASS])</text>
+      <text x="320" y="0" fill="#38BDF8">&#8594; http://localhost:8000 (Docs: /docs [OPERATIONAL])</text>
     </g>
 
     <g class="log-line-6" transform="translate(0, 192)">
