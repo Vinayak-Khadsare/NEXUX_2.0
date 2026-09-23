@@ -42,16 +42,16 @@
         100% { stroke-dashoffset: 0; }
       }
       @keyframes floatOrbit1 {
-        0%, 100% { transform: translate(0px, 0px); }
-        50% { transform: translate(8px, -12px); }
+        0%, 100% { filter: drop-shadow(0 0 3px #38BDF8); }
+        50% { filter: drop-shadow(0 0 12px #38BDF8); }
       }
       @keyframes floatOrbit2 {
-        0%, 100% { transform: translate(0px, 0px); }
-        50% { transform: translate(-10px, 14px); }
+        0%, 100% { filter: drop-shadow(0 0 4px #818CF8); }
+        50% { filter: drop-shadow(0 0 14px #818CF8); }
       }
       @keyframes floatOrbit3 {
-        0%, 100% { transform: translate(0px, 0px); }
-        50% { transform: translate(12px, 8px); }
+        0%, 100% { filter: drop-shadow(0 0 3px #C084FC); }
+        50% { filter: drop-shadow(0 0 12px #C084FC); }
       }
       @keyframes pathfinderPulse {
         0% { stroke-dashoffset: 120; opacity: 0.3; }
@@ -197,7 +197,7 @@
       <ellipse cx="250" cy="380" rx="80" ry="18" fill="none" />
       <line x1="30" y1="380" x2="470" y2="380" />
       <line x1="120" y1="350" x2="380" y2="410" />
-    </line>
+    </g>
 
     <!-- Scanline HUD effect -->
     <line x1="0" y1="0" x2="500" y2="0" stroke="#00F0FF" stroke-width="1.5" opacity="0.4" class="scanner-beam" />

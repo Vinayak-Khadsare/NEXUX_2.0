@@ -35,8 +35,8 @@
         to { stroke-dashoffset: -40; }
       }
       @keyframes pulseStep {
-        0%, 100% { transform: translateY(0); }
-        50% { transform: translateY(-4px); }
+        0%, 100% { opacity: 0.88; }
+        50% { opacity: 1; filter: drop-shadow(0 0 10px #38BDF8); }
       }
       @keyframes glowLight {
         0%, 100% { opacity: 0.6; }

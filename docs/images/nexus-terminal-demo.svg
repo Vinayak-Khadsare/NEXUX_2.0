@@ -46,7 +46,7 @@
 
   <!-- Terminal Title -->
   <text x="500" y="24" font-family="'JetBrains Mono', monospace" font-size="11" font-weight="600" fill="#94A3B8" text-anchor="middle">
-    powershell &mdash; Start-NEXUS.bat (Zero-Terminal Orchestrator)
+    powershell &#8212; Start-NEXUS.bat (Zero-Terminal Orchestrator)
   </text>
 
   <!-- Terminal Content Stream -->
@@ -58,34 +58,34 @@
     <!-- Banner ASCII -->
     <g class="log-line-1" transform="translate(0, 26)">
       <text x="0" y="0" fill="#0284C7" font-weight="800">================================================================================</text>
-      <text x="0" y="18" fill="#38BDF8" font-weight="800">[NEXUS] AI-POWERED CRIMINAL NETWORK ANALYSIS PLATFORM &bull; SIH26189</text>
+      <text x="0" y="18" fill="#38BDF8" font-weight="800">[NEXUS] AI-POWERED CRIMINAL NETWORK ANALYSIS PLATFORM &#8226; SIH26189</text>
       <text x="0" y="36" fill="#0284C7" font-weight="800">================================================================================</text>
     </g>
 
     <!-- Service Checks -->
     <g class="log-line-2" transform="translate(0, 88)">
       <text x="0" y="0" fill="#10B981" font-weight="700">[✓] [1/5] MongoDB 7.0 Service</text>
-      <text x="320" y="0" fill="#94A3B8">&rarr; localhost:27017 (Database: nexus [CONNECTED])</text>
+      <text x="320" y="0" fill="#94A3B8">&#8594; localhost:27017 (Database: nexus [CONNECTED])</text>
     </g>
 
     <g class="log-line-3" transform="translate(0, 114)">
       <text x="0" y="0" fill="#10B981" font-weight="700">[✓] [2/5] ChromaDB Vector Store</text>
-      <text x="320" y="0" fill="#94A3B8">&rarr; collection 'nexus_evidence' loaded (Cosine Sim: READY)</text>
+      <text x="320" y="0" fill="#94A3B8">&#8594; collection 'nexus_evidence' loaded (Cosine Sim: READY)</text>
     </g>
 
     <g class="log-line-4" transform="translate(0, 140)">
       <text x="0" y="0" fill="#10B981" font-weight="700">[✓] [3/5] Local Ollama LLM</text>
-      <text x="320" y="0" fill="#94A3B8">&rarr; qwen2.5:7b active on port 11434 (Deterministic RAG)</text>
+      <text x="320" y="0" fill="#94A3B8">&#8594; qwen2.5:7b active on port 11434 (Deterministic RAG)</text>
     </g>
 
     <g class="log-line-5" transform="translate(0, 166)">
       <text x="0" y="0" fill="#10B981" font-weight="700">[✓] [4/5] FastAPI Intelligence Core</text>
-      <text x="320" y="0" fill="#38BDF8">&rarr; http://localhost:8000 (Docs: /docs [TESTS 11/11 PASS])</text>
+      <text x="320" y="0" fill="#38BDF8">&#8594; http://localhost:8000 (Docs: /docs [TESTS 11/11 PASS])</text>
     </g>
 
     <g class="log-line-6" transform="translate(0, 192)">
       <text x="0" y="0" fill="#10B981" font-weight="700">[✓] [5/5] Next.js 15 Web Console</text>
-      <text x="320" y="0" fill="#38BDF8">&rarr; http://localhost:3000 (Three.js WebGL &bull; 60 FPS)</text>
+      <text x="320" y="0" fill="#38BDF8">&#8594; http://localhost:3000 (Three.js WebGL &#8226; 60 FPS)</text>
     </g>
 
     <!-- Ready Prompt -->
