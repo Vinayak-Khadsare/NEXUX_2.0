@@ -5,7 +5,7 @@ import {
   buttonStagger, buttonItem, staggerContainer,
 } from "@/lib/motion";
 import { heroContent } from "@/content/hero";
-import NexusHeroCanvas from "./NexusHeroCanvas";
+import InvestigatorHeroVisualizer from "./InvestigatorHeroVisualizer";
 
 export function Hero() {
   return (
@@ -65,7 +65,7 @@ export function Hero() {
 
         <div className="relative h-[480px] lg:h-[640px] flex items-center justify-center">
           <div className="absolute inset-0 z-0">
-            <NexusHeroCanvas />
+            <InvestigatorHeroVisualizer />
           </div>
           
           {/* Circular HUD Hexagons Overlay */}
