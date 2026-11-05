@@ -1,13 +1,14 @@
 "use client";
-import React, { useRef, useMemo } from "react";
-import { useFrame } from "@react-three/fiber";
+import React, { useRef, useMemo, useEffect, useState } from "react";
+import { useFrame, createPortal } from "@react-three/fiber";
+import { useGLTF, useAnimations } from "@react-three/drei";
 import * as THREE from "three";
 
 interface InvestigatorProps {
   interactive?: boolean;
 }
 
-// 5-point star shape generator
+// 5-Point Star 2D Shape for badges
 function createStarShape(radius: number, innerRadius: number): THREE.Shape {
   const shape = new THREE.Shape();
   const points = 5;
@@ -23,12 +24,12 @@ function createStarShape(radius: number, innerRadius: number): THREE.Shape {
   return shape;
 }
 
-// Police shield badge shape generator
+// Police Shield Badge 2D Shape
 function createShieldShape(width: number, height: number): THREE.Shape {
   const shape = new THREE.Shape();
   const w = width / 2;
   const h = height / 2;
-  
+
   shape.moveTo(-w * 0.85, h);
   shape.lineTo(w * 0.85, h);
   shape.quadraticCurveTo(w, h * 0.4, w * 0.95, -h * 0.15);
@@ -39,643 +40,600 @@ function createShieldShape(width: number, height: number): THREE.Shape {
   return shape;
 }
 
+// Sub-component: 8-Point Police Officer Cap with Platinum Badge
+function PoliceOfficerCap({ materials }: { materials: Record<string, THREE.Material> }) {
+  const starShape = useMemo(() => createStarShape(0.016, 0.007), []);
+  const shieldShape = useMemo(() => createShieldShape(0.048, 0.058), []);
+
+  return (
+    <group position={[0, 0.165, 0.015]} rotation={[0.04, 0, 0]}>
+      {/* 1. Cap Base Band / Sweatband */}
+      <mesh position={[0, 0, 0.01]} castShadow receiveShadow>
+        <cylinderGeometry args={[0.115, 0.118, 0.038, 32]} />
+        <primitive object={materials.capBand} />
+      </mesh>
+
+      {/* 2. Cap Flared Crown (8-Point Officer Top) */}
+      <mesh position={[0, 0.042, 0.018]} rotation={[0.06, 0, 0]} castShadow receiveShadow>
+        <cylinderGeometry args={[0.152, 0.116, 0.052, 8]} />
+        <primitive object={materials.uniformCloth} />
+      </mesh>
+
+      {/* 3. Cap Top Crown Plate */}
+      <mesh position={[0, 0.068, 0.02]} rotation={[0.06, 0, 0]} castShadow receiveShadow>
+        <cylinderGeometry args={[0.154, 0.152, 0.01, 8]} />
+        <primitive object={materials.uniformCloth} />
+      </mesh>
+
+      {/* 4. Glossy Patent Leather Visor / Bill */}
+      <mesh position={[0, -0.014, 0.108]} rotation={[0.34, 0, 0]} castShadow receiveShadow>
+        <boxGeometry args={[0.174, 0.012, 0.082]} />
+        <primitive object={materials.glossyVisor} />
+      </mesh>
+      {/* Visor Beveled Lip */}
+      <mesh position={[0, -0.028, 0.142]} rotation={[0.42, 0, 0]} castShadow receiveShadow>
+        <boxGeometry args={[0.158, 0.008, 0.022]} />
+        <primitive object={materials.glossyVisor} />
+      </mesh>
+
+      {/* 5. Braided Chinstrap over Visor Seam */}
+      <mesh position={[0, -0.002, 0.104]} rotation={[0.15, 0, 0]} castShadow>
+        <boxGeometry args={[0.182, 0.012, 0.014]} />
+        <primitive object={materials.leatherBlack} />
+      </mesh>
+      {/* Chinstrap Silver Accent Line */}
+      <mesh position={[0, -0.001, 0.112]} rotation={[0.15, 0, 0]} castShadow>
+        <boxGeometry args={[0.176, 0.004, 0.004]} />
+        <primitive object={materials.platinumSilver} />
+      </mesh>
+
+      {/* 6. Chinstrap Side Fastener Buttons (Left & Right) */}
+      <mesh position={[-0.108, 0.002, 0.055]} rotation={[0, -Math.PI / 2.8, 0]} castShadow>
+        <cylinderGeometry args={[0.009, 0.009, 0.006, 16]} />
+        <primitive object={materials.platinumSilver} />
+      </mesh>
+      <mesh position={[0.108, 0.002, 0.055]} rotation={[0, Math.PI / 2.8, 0]} castShadow>
+        <cylinderGeometry args={[0.009, 0.009, 0.006, 16]} />
+        <primitive object={materials.platinumSilver} />
+      </mesh>
+
+      {/* 7. Front Police Cap Shield Badge */}
+      <group position={[0, 0.038, 0.126]} rotation={[-0.08, 0, 0]}>
+        {/* Extruded Platinum Shield */}
+        <mesh castShadow receiveShadow>
+          <extrudeGeometry
+            args={[
+              shieldShape,
+              { depth: 0.006, bevelEnabled: true, bevelSegments: 3, steps: 1, bevelSize: 0.003, bevelThickness: 0.003 },
+            ]}
+          />
+          <primitive object={materials.platinumSilver} />
+        </mesh>
+        {/* Embossed Inner Star */}
+        <mesh position={[0, 0.004, 0.009]} castShadow>
+          <extrudeGeometry
+            args={[
+              starShape,
+              { depth: 0.004, bevelEnabled: true, bevelSegments: 2, steps: 1, bevelSize: 0.001, bevelThickness: 0.001 },
+            ]}
+          />
+          <primitive object={materials.platinumHighSpec} />
+        </mesh>
+      </group>
+    </group>
+  );
+}
+
+// Sub-component: Chest Uniform Embellishments (Badge, Nameplate, Pockets, Placket, Mic)
+function UniformChestDetails({ materials }: { materials: Record<string, THREE.Material> }) {
+  const starShape = useMemo(() => createStarShape(0.013, 0.006), []);
+  const shieldShape = useMemo(() => createShieldShape(0.042, 0.052), []);
+
+  return (
+    <group position={[0, 0.024, 0.098]}>
+      {/* 1. Center Vertical Button Placket */}
+      <mesh position={[0, -0.04, 0.018]} castShadow receiveShadow>
+        <boxGeometry args={[0.032, 0.28, 0.01]} />
+        <primitive object={materials.uniformDarkTrim} />
+      </mesh>
+      {/* Placket Shank Buttons (5 Polish Silver Buttons) */}
+      {[-0.14, -0.09, -0.04, 0.01, 0.06].map((yOffset, i) => (
+        <mesh key={`btn-${i}`} position={[0, yOffset, 0.024]} rotation={[Math.PI / 2, 0, 0]} castShadow>
+          <cylinderGeometry args={[0.0055, 0.0055, 0.005, 16]} />
+          <primitive object={materials.platinumSilver} />
+        </mesh>
+      ))}
+
+      {/* 2. Left Breast Pocket (Pleated Pocket + Scalloped Flap + Official Badge) */}
+      <group position={[-0.102, -0.018, 0.015]}>
+        {/* Pocket Body */}
+        <mesh position={[0, -0.045, 0]} castShadow receiveShadow>
+          <boxGeometry args={[0.082, 0.092, 0.012]} />
+          <primitive object={materials.uniformCloth} />
+        </mesh>
+        {/* Center Vertical Pleat Crease */}
+        <mesh position={[0, -0.045, 0.007]} castShadow>
+          <boxGeometry args={[0.014, 0.09, 0.004]} />
+          <primitive object={materials.uniformDarkTrim} />
+        </mesh>
+        {/* Scalloped Pocket Flap */}
+        <mesh position={[0, 0.005, 0.006]} rotation={[0.08, 0, 0]} castShadow receiveShadow>
+          <boxGeometry args={[0.086, 0.028, 0.01]} />
+          <primitive object={materials.uniformDarkTrim} />
+        </mesh>
+        {/* Flap Silver Button */}
+        <mesh position={[0, 0.002, 0.014]} rotation={[Math.PI / 2, 0, 0]} castShadow>
+          <cylinderGeometry args={[0.0045, 0.0045, 0.004, 14]} />
+          <primitive object={materials.platinumSilver} />
+        </mesh>
+
+        {/* 3D Extruded Platinum Investigator Shield Badge */}
+        <group position={[0, 0.038, 0.014]} rotation={[-0.04, 0, 0]}>
+          <mesh castShadow receiveShadow>
+            <extrudeGeometry
+              args={[
+                shieldShape,
+                { depth: 0.005, bevelEnabled: true, bevelSegments: 2, steps: 1, bevelSize: 0.002, bevelThickness: 0.002 },
+              ]}
+            />
+            <primitive object={materials.platinumSilver} />
+          </mesh>
+          {/* Centered Star on Badge */}
+          <mesh position={[0, 0.003, 0.008]} castShadow>
+            <extrudeGeometry
+              args={[
+                starShape,
+                { depth: 0.003, bevelEnabled: true, bevelSegments: 2, steps: 1, bevelSize: 0.001, bevelThickness: 0.001 },
+              ]}
+            />
+            <primitive object={materials.platinumHighSpec} />
+          </mesh>
+        </group>
+      </group>
+
+      {/* 3. Right Breast Pocket (Pleated Pocket + Flap + Silver Nameplate) */}
+      <group position={[0.102, -0.018, 0.015]}>
+        {/* Pocket Body */}
+        <mesh position={[0, -0.045, 0]} castShadow receiveShadow>
+          <boxGeometry args={[0.082, 0.092, 0.012]} />
+          <primitive object={materials.uniformCloth} />
+        </mesh>
+        {/* Center Vertical Pleat Crease */}
+        <mesh position={[0, -0.045, 0.007]} castShadow>
+          <boxGeometry args={[0.014, 0.09, 0.004]} />
+          <primitive object={materials.uniformDarkTrim} />
+        </mesh>
+        {/* Scalloped Pocket Flap */}
+        <mesh position={[0, 0.005, 0.006]} rotation={[0.08, 0, 0]} castShadow receiveShadow>
+          <boxGeometry args={[0.086, 0.028, 0.01]} />
+          <primitive object={materials.uniformDarkTrim} />
+        </mesh>
+        {/* Flap Silver Button */}
+        <mesh position={[0, 0.002, 0.014]} rotation={[Math.PI / 2, 0, 0]} castShadow>
+          <cylinderGeometry args={[0.0045, 0.0045, 0.004, 14]} />
+          <primitive object={materials.platinumSilver} />
+        </mesh>
+
+        {/* Polished Platinum-Silver Engraved Nameplate */}
+        <group position={[0, 0.034, 0.012]}>
+          <mesh castShadow receiveShadow>
+            <boxGeometry args={[0.068, 0.016, 0.006]} />
+            <primitive object={materials.platinumSilver} />
+          </mesh>
+          {/* Beveled Edge Highlight */}
+          <mesh position={[0, 0, 0.004]} castShadow>
+            <boxGeometry args={[0.062, 0.012, 0.002]} />
+            <primitive object={materials.platinumHighSpec} />
+          </mesh>
+        </group>
+      </group>
+
+      {/* 4. Left Shoulder Epaulette & Radio Microphone */}
+      <group position={[-0.178, 0.105, -0.02]} rotation={[0, 0, -0.22]}>
+        {/* Epaulette Strap */}
+        <mesh castShadow receiveShadow>
+          <boxGeometry args={[0.052, 0.014, 0.125]} />
+          <primitive object={materials.uniformDarkTrim} />
+        </mesh>
+        {/* Neck Fastener Silver Button */}
+        <mesh position={[0.015, 0.009, -0.035]} rotation={[0, 0, 0]} castShadow>
+          <cylinderGeometry args={[0.005, 0.005, 0.005, 14]} />
+          <primitive object={materials.platinumSilver} />
+        </mesh>
+        {/* Silver Rank Bars */}
+        <mesh position={[-0.008, 0.009, 0.025]} castShadow>
+          <boxGeometry args={[0.016, 0.003, 0.006]} />
+          <primitive object={materials.platinumSilver} />
+        </mesh>
+        <mesh position={[-0.008, 0.009, 0.042]} castShadow>
+          <boxGeometry args={[0.016, 0.003, 0.006]} />
+          <primitive object={materials.platinumSilver} />
+        </mesh>
+
+        {/* Tactical Shoulder Lapel Radio Microphone */}
+        <group position={[-0.01, 0.022, 0.015]} rotation={[0.2, 0.35, 0]}>
+          {/* Mic Head Case */}
+          <mesh castShadow receiveShadow>
+            <boxGeometry args={[0.026, 0.034, 0.022]} />
+            <primitive object={materials.gearBlack} />
+          </mesh>
+          {/* Speaker Grille */}
+          <mesh position={[0, 0, 0.012]} castShadow>
+            <boxGeometry args={[0.018, 0.022, 0.003]} />
+            <primitive object={materials.gearGrille} />
+          </mesh>
+          {/* Push-to-Talk Button (PTT) */}
+          <mesh position={[-0.014, 0.004, 0]} castShadow>
+            <boxGeometry args={[0.005, 0.016, 0.012]} />
+            <primitive object={materials.gearCharcoal} />
+          </mesh>
+        </group>
+      </group>
+
+      {/* 5. Right Shoulder Epaulette */}
+      <group position={[0.178, 0.105, -0.02]} rotation={[0, 0, 0.22]}>
+        {/* Epaulette Strap */}
+        <mesh castShadow receiveShadow>
+          <boxGeometry args={[0.052, 0.014, 0.125]} />
+          <primitive object={materials.uniformDarkTrim} />
+        </mesh>
+        {/* Neck Fastener Silver Button */}
+        <mesh position={[-0.015, 0.009, -0.035]} castShadow>
+          <cylinderGeometry args={[0.005, 0.005, 0.005, 14]} />
+          <primitive object={materials.platinumSilver} />
+        </mesh>
+        {/* Silver Rank Bars */}
+        <mesh position={[0.008, 0.009, 0.025]} castShadow>
+          <boxGeometry args={[0.016, 0.003, 0.006]} />
+          <primitive object={materials.platinumSilver} />
+        </mesh>
+        <mesh position={[0.008, 0.009, 0.042]} castShadow>
+          <boxGeometry args={[0.016, 0.003, 0.006]} />
+          <primitive object={materials.platinumSilver} />
+        </mesh>
+      </group>
+    </group>
+  );
+}
+
+// Sub-component: 360-Degree Duty Belt with Holster, Pouches, Handcuffs, Radio & Belt Keepers
+function DutyBeltGear({ materials }: { materials: Record<string, THREE.Material> }) {
+  return (
+    <group position={[0, 0.162, 0.012]}>
+      {/* 1. Contoured Heavy-Duty Leather Belt Loop */}
+      <mesh castShadow receiveShadow>
+        <cylinderGeometry args={[0.228, 0.234, 0.058, 36]} />
+        <primitive object={materials.leatherDutyBelt} />
+      </mesh>
+
+      {/* 2. Front Heavy-Duty Platinum Buckle */}
+      <mesh position={[0, 0, 0.236]} castShadow receiveShadow>
+        <boxGeometry args={[0.076, 0.068, 0.018]} />
+        <primitive object={materials.platinumSilver} />
+      </mesh>
+      {/* Buckle Inner Bevel */}
+      <mesh position={[0, 0, 0.244]} castShadow>
+        <boxGeometry args={[0.058, 0.048, 0.006]} />
+        <primitive object={materials.leatherDutyBelt} />
+      </mesh>
+
+      {/* 3. Front Snap Belt Keepers (Left & Right of Buckle) */}
+      {[-0.078, 0.078].map((x, i) => (
+        <group key={`keeper-front-${i}`} position={[x, 0, 0.226]}>
+          <mesh castShadow>
+            <boxGeometry args={[0.022, 0.066, 0.018]} />
+            <primitive object={materials.leatherBlack} />
+          </mesh>
+          {/* Dual Chrome Snaps */}
+          <mesh position={[0, 0.018, 0.01]} rotation={[Math.PI / 2, 0, 0]}>
+            <cylinderGeometry args={[0.0035, 0.0035, 0.003, 10]} />
+            <primitive object={materials.platinumSilver} />
+          </mesh>
+          <mesh position={[0, -0.018, 0.01]} rotation={[Math.PI / 2, 0, 0]}>
+            <cylinderGeometry args={[0.0035, 0.0035, 0.003, 10]} />
+            <primitive object={materials.platinumSilver} />
+          </mesh>
+        </group>
+      ))}
+
+      {/* 4. Right Hip: Molded Duty Holster with Service Weapon Grip */}
+      <group position={[0.222, -0.062, 0.045]} rotation={[0.08, 0, -0.16]}>
+        {/* Holster Shell */}
+        <mesh castShadow receiveShadow>
+          <boxGeometry args={[0.046, 0.158, 0.082]} />
+          <primitive object={materials.gearBlack} />
+        </mesh>
+        {/* Retention Hood / Strap */}
+        <mesh position={[0, 0.082, 0]} castShadow>
+          <boxGeometry args={[0.052, 0.016, 0.088]} />
+          <primitive object={materials.gearCharcoal} />
+        </mesh>
+        {/* Handgun Grip Angled Naturally Forward */}
+        <mesh position={[0, 0.098, -0.015]} rotation={[-0.38, 0, 0]} castShadow>
+          <boxGeometry args={[0.028, 0.078, 0.038]} />
+          <primitive object={materials.gearCharcoal} />
+        </mesh>
+      </group>
+
+      {/* 5. Left Hip: Double Magazine Pouch + Tactical Taser Holster */}
+      <group position={[-0.224, -0.018, 0.045]} rotation={[0.05, 0, 0.14]}>
+        {/* Double Mag Pouch */}
+        <mesh castShadow receiveShadow>
+          <boxGeometry args={[0.042, 0.086, 0.076]} />
+          <primitive object={materials.leatherBlack} />
+        </mesh>
+        {/* Snaps on Mag Flaps */}
+        <mesh position={[-0.022, 0.014, -0.018]} rotation={[0, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[0.004, 0.004, 0.004, 12]} />
+          <primitive object={materials.platinumSilver} />
+        </mesh>
+        <mesh position={[-0.022, 0.014, 0.018]} rotation={[0, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[0.004, 0.004, 0.004, 12]} />
+          <primitive object={materials.platinumSilver} />
+        </mesh>
+
+        {/* Taser Carrier */}
+        <group position={[0.012, -0.038, 0.058]}>
+          <mesh castShadow receiveShadow>
+            <boxGeometry args={[0.038, 0.094, 0.048]} />
+            <primitive object={materials.gearBlack} />
+          </mesh>
+          {/* High-visibility yellow safety stripe */}
+          <mesh position={[-0.02, 0.022, 0]} castShadow>
+            <boxGeometry args={[0.003, 0.026, 0.044]} />
+            <primitive object={materials.taserYellow} />
+          </mesh>
+        </group>
+      </group>
+
+      {/* 6. Rear of Duty Belt: Handcuff Pouch & Police Radio Receiver */}
+      {/* Left-Rear: Double Handcuff Case */}
+      <group position={[-0.078, -0.022, -0.222]} rotation={[0.08, 0, 0]}>
+        <mesh castShadow receiveShadow>
+          <boxGeometry args={[0.082, 0.086, 0.044]} />
+          <primitive object={materials.leatherBlack} />
+        </mesh>
+        {/* Twin Silver Snaps */}
+        <mesh position={[-0.022, 0.016, -0.024]} rotation={[Math.PI / 2, 0, 0]}>
+          <cylinderGeometry args={[0.0045, 0.0045, 0.004, 12]} />
+          <primitive object={materials.platinumSilver} />
+        </mesh>
+        <mesh position={[0.022, 0.016, -0.024]} rotation={[Math.PI / 2, 0, 0]}>
+          <cylinderGeometry args={[0.0045, 0.0045, 0.004, 12]} />
+          <primitive object={materials.platinumSilver} />
+        </mesh>
+      </group>
+
+      {/* Right-Rear: Tactical Police Radio Unit with Whip Antenna */}
+      <group position={[0.092, 0.012, -0.224]} rotation={[0.08, 0, 0]}>
+        {/* Main Radio Chassis */}
+        <mesh castShadow receiveShadow>
+          <boxGeometry args={[0.048, 0.124, 0.042]} />
+          <primitive object={materials.gearBlack} />
+        </mesh>
+        {/* Channel & Volume Dials */}
+        <mesh position={[-0.014, 0.068, 0]} castShadow>
+          <cylinderGeometry args={[0.006, 0.006, 0.014, 12]} />
+          <primitive object={materials.gearCharcoal} />
+        </mesh>
+        <mesh position={[0.014, 0.068, 0]} castShadow>
+          <cylinderGeometry args={[0.005, 0.005, 0.012, 12]} />
+          <primitive object={materials.gearCharcoal} />
+        </mesh>
+        {/* Flexible Whip Rubber Antenna Extending Upward */}
+        <mesh position={[0.015, 0.148, 0]} castShadow>
+          <cylinderGeometry args={[0.003, 0.004, 0.165, 10]} />
+          <primitive object={materials.gearCharcoal} />
+        </mesh>
+      </group>
+
+      {/* Rear Belt Keepers */}
+      {[-0.14, 0.15].map((x, i) => (
+        <mesh key={`keeper-rear-${i}`} position={[x, 0, -0.222]} castShadow>
+          <boxGeometry args={[0.018, 0.064, 0.016]} />
+          <primitive object={materials.leatherBlack} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+// Main High-Fidelity Rigged 3D Character Component
 export default function PoliceInvestigatorModel({ interactive = true }: InvestigatorProps) {
   const rootGroupRef = useRef<THREE.Group>(null);
-  const headGroupRef = useRef<THREE.Group>(null);
-  const torsoGroupRef = useRef<THREE.Group>(null);
-  const leftArmRef = useRef<THREE.Group>(null);
-  const rightArmRef = useRef<THREE.Group>(null);
+  
+  // Load the organic rigged 3D character mesh and skeletal animations
+  const { scene, animations } = useGLTF("/models/police_character.glb");
+  const { actions, mixer } = useAnimations(animations, scene);
 
-  // High-fidelity materials tuned to NEXUS Charcoal & Platinum Identity
-  const materials = useMemo(() => {
+  // Bones refs for portal mounting
+  const [bones, setBones] = useState<{
+    head: THREE.Object3D | null;
+    chest: THREE.Object3D | null;
+    hips: THREE.Object3D | null;
+  }>({ head: null, chest: null, hips: null });
+
+  // Custom NEXUS Charcoal Black + Platinum Silver Materials Palette
+  const customMaterials = useMemo(() => {
     return {
-      // Police uniform graphite-charcoal fabric (subtle cloth sheen, refined micro-texture)
-      uniform: new THREE.MeshStandardMaterial({
-        color: "#242930",
-        roughness: 0.72,
-        metalness: 0.1,
-      }),
-      // Tailored trim: collar, pocket flaps, placket, and epaulets
-      uniformDark: new THREE.MeshStandardMaterial({
-        color: "#1A1E24",
-        roughness: 0.75,
-        metalness: 0.12,
-      }),
-      // Natural warm skin tone (stylized animated game character)
-      skin: new THREE.MeshStandardMaterial({
-        color: "#5C3D30",
-        roughness: 0.52,
-        metalness: 0.05,
-      }),
-      // Polished Platinum Silver for badges, nameplate, belt buckle, buttons
-      platinumSilver: new THREE.MeshStandardMaterial({
-        color: "#D0D6DC",
-        metalness: 0.92,
-        roughness: 0.18,
-      }),
-      // Star relief highlight
-      brightSilver: new THREE.MeshStandardMaterial({
-        color: "#F0F4F8",
-        metalness: 0.96,
-        roughness: 0.12,
-      }),
-      // Glossy black leather for cap visor
-      glossyVisor: new THREE.MeshStandardMaterial({
-        color: "#08090B",
-        roughness: 0.12,
-        metalness: 0.4,
-      }),
-      // Duty belt & equipment leather
-      dutyLeather: new THREE.MeshStandardMaterial({
-        color: "#111316",
-        roughness: 0.48,
-        metalness: 0.2,
-      }),
-      // Equipment matte polymer (radio, holster body, service weapon grip)
-      equipmentPolymer: new THREE.MeshStandardMaterial({
-        color: "#181A1D",
-        roughness: 0.65,
-        metalness: 0.25,
-      }),
-      // Eyes
-      eyeWhite: new THREE.MeshStandardMaterial({
-        color: "#ECECEC",
-        roughness: 0.15,
-        metalness: 0.05,
-      }),
-      eyeIris: new THREE.MeshStandardMaterial({
-        color: "#2C1B14",
-        roughness: 0.1,
+      // 1. Uniform Cloth: Fine graphite-charcoal weave
+      uniformCloth: new THREE.MeshStandardMaterial({
+        color: "#22262C",
+        roughness: 0.74,
         metalness: 0.08,
       }),
-      eyePupil: new THREE.MeshBasicMaterial({
-        color: "#040404",
+      // 2. Uniform Trim: Deep tailored midnight charcoal
+      uniformDarkTrim: new THREE.MeshStandardMaterial({
+        color: "#181B20",
+        roughness: 0.7,
+        metalness: 0.12,
       }),
-      eyeCatchlight: new THREE.MeshBasicMaterial({
-        color: "#FFFFFF",
-      }),
-      // Hair & Eyebrows
-      hair: new THREE.MeshStandardMaterial({
-        color: "#141518",
-        roughness: 0.88,
+      // 3. Crisp Officer Shirt
+      shirtWhite: new THREE.MeshStandardMaterial({
+        color: "#E2E8F0",
+        roughness: 0.65,
         metalness: 0.05,
       }),
-      // Subtle gold/brass badge accent
-      badgeSeal: new THREE.MeshStandardMaterial({
-        color: "#E2C485",
-        metalness: 0.85,
-        roughness: 0.25,
+      // 4. Midnight Tie
+      tieMidnight: new THREE.MeshStandardMaterial({
+        color: "#121418",
+        roughness: 0.48,
+        metalness: 0.22,
+      }),
+      // 5. Stylized Natural Skin
+      naturalSkin: new THREE.MeshStandardMaterial({
+        color: "#D6A67E",
+        roughness: 0.66,
+        metalness: 0.02,
+      }),
+      // 6. Styled Charcoal Hair & Brows
+      charcoalHair: new THREE.MeshStandardMaterial({
+        color: "#181A1D",
+        roughness: 0.85,
+        metalness: 0.05,
+      }),
+      // 7. Platinum Silver (Badges, Buttons, Insignia, Buckles)
+      platinumSilver: new THREE.MeshStandardMaterial({
+        color: "#D8DEE6",
+        roughness: 0.22,
+        metalness: 0.94,
+      }),
+      // 8. High-Spec Platinum Highlights
+      platinumHighSpec: new THREE.MeshStandardMaterial({
+        color: "#F0F4F8",
+        roughness: 0.14,
+        metalness: 0.98,
+      }),
+      // 9. Patent Leather High-Gloss Visor
+      glossyVisor: new THREE.MeshStandardMaterial({
+        color: "#08090C",
+        roughness: 0.12,
+        metalness: 0.28,
+      }),
+      // 10. Cap Band
+      capBand: new THREE.MeshStandardMaterial({
+        color: "#16191F",
+        roughness: 0.68,
+        metalness: 0.14,
+      }),
+      // 11. Duty Belt Leather
+      leatherDutyBelt: new THREE.MeshStandardMaterial({
+        color: "#121417",
+        roughness: 0.46,
+        metalness: 0.18,
+      }),
+      // 12. Accessory Leather
+      leatherBlack: new THREE.MeshStandardMaterial({
+        color: "#15181C",
+        roughness: 0.42,
+        metalness: 0.15,
+      }),
+      // 13. Tactical Polymer Gear
+      gearBlack: new THREE.MeshStandardMaterial({
+        color: "#0F1114",
+        roughness: 0.38,
+        metalness: 0.25,
+      }),
+      gearCharcoal: new THREE.MeshStandardMaterial({
+        color: "#1D2024",
+        roughness: 0.5,
+        metalness: 0.2,
+      }),
+      gearGrille: new THREE.MeshStandardMaterial({
+        color: "#2C3138",
+        roughness: 0.6,
+        metalness: 0.4,
+      }),
+      // 14. Taser Safety Accent
+      taserYellow: new THREE.MeshStandardMaterial({
+        color: "#EAB308",
+        roughness: 0.35,
+        metalness: 0.1,
       }),
     };
   }, []);
 
-  // Extruded Geometries for Badges
-  const chestBadgeGeom = useMemo(() => {
-    const shieldShape = createShieldShape(0.34, 0.44);
-    return new THREE.ExtrudeGeometry(shieldShape, {
-      depth: 0.035,
-      bevelEnabled: true,
-      bevelSegments: 3,
-      steps: 1,
-      bevelSize: 0.016,
-      bevelThickness: 0.016,
-    });
-  }, []);
+  // Prepare and recolor character meshes & link skeleton bones
+  useEffect(() => {
+    if (!scene) return;
 
-  const capBadgeGeom = useMemo(() => {
-    const shieldShape = createShieldShape(0.38, 0.48);
-    return new THREE.ExtrudeGeometry(shieldShape, {
-      depth: 0.035,
-      bevelEnabled: true,
-      bevelSegments: 3,
-      steps: 1,
-      bevelSize: 0.018,
-      bevelThickness: 0.018,
-    });
-  }, []);
+    // Repaint model meshes to Charcoal Black & Platinum Silver uniform palette
+    scene.traverse((child) => {
+      const mesh = child as THREE.Mesh;
+      if (mesh.isMesh) {
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
 
-  const starGeom = useMemo(() => {
-    const starShape = createStarShape(0.12, 0.055);
-    return new THREE.ExtrudeGeometry(starShape, {
-      depth: 0.025,
-      bevelEnabled: true,
-      bevelSegments: 2,
-      steps: 1,
-      bevelSize: 0.012,
-      bevelThickness: 0.012,
-    });
-  }, []);
+        // Hide detached weapon mesh from hand so our molded holster is primary
+        if (mesh.name === "Pistol" || mesh.name.includes("Pistol")) {
+          mesh.visible = false;
+        }
 
-  // Idle Animation: Breathing & subtle lifelike micro-sway
+        // Remap materials cleanly
+        if (mesh.material) {
+          const mat = mesh.material as THREE.MeshStandardMaterial;
+          const matName = mat.name;
+
+          if (matName === "Suit") {
+            mesh.material = customMaterials.uniformCloth;
+          } else if (matName === "White") {
+            mesh.material = customMaterials.shirtWhite;
+          } else if (matName === "Tie") {
+            mesh.material = customMaterials.tieMidnight;
+          } else if (matName === "Skin") {
+            mesh.material = customMaterials.naturalSkin;
+          } else if (matName === "Hair" || matName === "Eyebrows") {
+            mesh.material = customMaterials.charcoalHair;
+          } else if (matName === "Black") {
+            mesh.material = customMaterials.leatherBlack;
+          } else if (matName === "Grey") {
+            mesh.material = customMaterials.platinumSilver;
+          }
+        }
+      }
+    });
+
+    // Locate target bones for mounting accessories
+    const head = scene.getObjectByName("Head");
+    const chest = scene.getObjectByName("Chest");
+    const hips = scene.getObjectByName("Hips");
+
+    setBones({ head: head || null, chest: chest || null, hips: hips || null });
+
+    // Start idle animation smoothly
+    if (actions) {
+      const idleClip = actions["Idle_Neutral"] || actions["Idle"] || Object.values(actions)[0];
+      if (idleClip) {
+        idleClip.reset().fadeIn(0.6).play();
+        idleClip.setEffectiveTimeScale(0.85); // Calm, professional breathing pace
+      }
+    }
+  }, [scene, actions, customMaterials]);
+
+  // Gentle micro-sway for subtle organic life
   useFrame((state) => {
+    if (!rootGroupRef.current) return;
     const t = state.clock.getElapsedTime();
-
-    // Natural chest breathing
-    if (torsoGroupRef.current) {
-      const breath = Math.sin(t * 1.6);
-      torsoGroupRef.current.scale.set(1 + breath * 0.012, 1 + breath * 0.018, 1 + breath * 0.014);
-    }
-
-    // Natural head idle motion (gentle micro-look)
-    if (headGroupRef.current) {
-      headGroupRef.current.rotation.y = Math.sin(t * 0.65) * 0.035;
-      headGroupRef.current.rotation.x = Math.sin(t * 1.0) * 0.018 - 0.01;
-      headGroupRef.current.position.y = 1.62 + Math.sin(t * 1.6) * 0.012;
-    }
-
-    // Gentle shoulder / arm drift
-    if (leftArmRef.current && rightArmRef.current) {
-      const armDrift = Math.sin(t * 1.6) * 0.008;
-      leftArmRef.current.rotation.z = 0.06 + armDrift;
-      rightArmRef.current.rotation.z = -0.06 - armDrift;
-    }
+    // Micro-sway (0.015 rad = ~0.8 degrees)
+    rootGroupRef.current.rotation.y = Math.sin(t * 0.45) * 0.018;
   });
 
   return (
-    <group ref={rootGroupRef} position={[0, -1.25, 0]}>
-      {/* ========================================================
-          1. HEAD & POLICE COMBINATION CAP (360° Full Detail)
-         ======================================================== */}
-      <group ref={headGroupRef} position={[0, 1.62, 0]}>
-        {/* Anatomical Cranium / Head Base */}
-        <mesh position={[0, 0.04, -0.02]} material={materials.skin} scale={[1, 1.15, 1.05]}>
-          <sphereGeometry args={[0.46, 32, 28]} />
-        </mesh>
+    <group ref={rootGroupRef} position={[0, -1.35, 0]} scale={1.55}>
+      {/* 1. Rigged Organic Human 3D Character Mesh */}
+      <primitive object={scene} />
 
-        {/* Sculpted Jaw & Chin (Smooth athletic jawline) */}
-        <mesh position={[0, -0.26, 0.08]} rotation={[0.22, 0, 0]} material={materials.skin} scale={[1, 0.85, 0.95]}>
-          <boxGeometry args={[0.44, 0.38, 0.42]} />
-        </mesh>
-        <mesh position={[0, -0.38, 0.16]} material={materials.skin} scale={[1.1, 0.9, 1]}>
-          <sphereGeometry args={[0.15, 20, 20]} />
-        </mesh>
+      {/* 2. Police Cap Portal (Anchored directly to Head Bone) */}
+      {bones.head && createPortal(<PoliceOfficerCap materials={customMaterials} />, bones.head)}
 
-        {/* Refined Nose */}
-        <mesh position={[0, -0.05, 0.46]} rotation={[-0.12, 0, 0]} material={materials.skin}>
-          <coneGeometry args={[0.075, 0.24, 6]} />
-        </mesh>
+      {/* 3. Police Uniform Chest Details Portal (Badge, Nameplate, Pockets, Epaulettes, Mic) */}
+      {bones.chest && createPortal(<UniformChestDetails materials={customMaterials} />, bones.chest)}
 
-        {/* Stylized Lips */}
-        <mesh position={[0, -0.22, 0.4]} material={materials.skin} scale={[1.4, 0.5, 0.5]}>
-          <sphereGeometry args={[0.08, 16, 12]} />
-        </mesh>
-
-        {/* Eyes (Left & Right) */}
-        {[-0.17, 0.17].map((x, i) => (
-          <group key={`eye-${i}`} position={[x, 0.06, 0.4]}>
-            {/* Sclera */}
-            <mesh material={materials.eyeWhite} scale={[1.15, 0.72, 0.45]}>
-              <sphereGeometry args={[0.095, 16, 16]} />
-            </mesh>
-            {/* Iris */}
-            <mesh position={[0, 0, 0.06]} material={materials.eyeIris} scale={[1, 1, 0.3]}>
-              <sphereGeometry args={[0.058, 16, 16]} />
-            </mesh>
-            {/* Pupil */}
-            <mesh position={[0, 0, 0.075]} material={materials.eyePupil} scale={[1, 1, 0.2]}>
-              <sphereGeometry args={[0.032, 16, 16]} />
-            </mesh>
-            {/* Catchlight reflection */}
-            <mesh position={[0.02, 0.022, 0.082]} material={materials.eyeCatchlight}>
-              <sphereGeometry args={[0.013, 8, 8]} />
-            </mesh>
-            {/* Eyebrow */}
-            <mesh position={[0, 0.1, 0.03]} rotation={[0, 0, i === 0 ? 0.06 : -0.06]} material={materials.hair}>
-              <boxGeometry args={[0.18, 0.035, 0.045]} />
-            </mesh>
-          </group>
-        ))}
-
-        {/* Ears with natural placement */}
-        {[-0.46, 0.46].map((x, i) => (
-          <mesh
-            key={`ear-${i}`}
-            position={[x, -0.02, -0.04]}
-            rotation={[0, 0, i === 0 ? -0.15 : 0.15]}
-            material={materials.skin}
-            scale={[0.4, 1, 0.75]}
-          >
-            <sphereGeometry args={[0.13, 16, 16]} />
-          </mesh>
-        ))}
-
-        {/* Hair visible under cap (sides and back of head) */}
-        <mesh position={[0, -0.08, -0.16]} material={materials.hair} scale={[1.05, 0.95, 1.1]}>
-          <sphereGeometry args={[0.42, 24, 20]} />
-        </mesh>
-        {/* Tapered hairline at rear of neck */}
-        <mesh position={[0, -0.32, -0.26]} rotation={[-0.15, 0, 0]} material={materials.hair}>
-          <boxGeometry args={[0.34, 0.18, 0.08]} />
-        </mesh>
-
-        {/* ================= POLICE CAP (Eight-Point Style) ================= */}
-        <group position={[0, 0.28, -0.02]} rotation={[-0.08, 0, 0]}>
-          {/* Cap Base Band (Circumference) */}
-          <mesh position={[0, 0, 0]} material={materials.uniformDark}>
-            <cylinderGeometry args={[0.5, 0.48, 0.16, 32]} />
-          </mesh>
-
-          {/* Cap Flared Crown (Charcoal 8-point flared cover) */}
-          <mesh position={[0, 0.2, -0.03]} rotation={[0.06, 0, 0]} material={materials.uniform}>
-            <cylinderGeometry args={[0.66, 0.49, 0.28, 20]} />
-          </mesh>
-          {/* Top Crown Cover Seam */}
-          <mesh position={[0, 0.34, -0.04]} material={materials.uniformDark}>
-            <cylinderGeometry args={[0.65, 0.66, 0.03, 20]} />
-          </mesh>
-
-          {/* Glossy Black Leather Visor / Peak */}
-          <group position={[0, -0.05, 0.38]} rotation={[0.32, 0, 0]}>
-            <mesh material={materials.glossyVisor}>
-              <cylinderGeometry args={[0.54, 0.54, 0.028, 32, 1, false, Math.PI * 0.18, Math.PI * 0.64]} />
-            </mesh>
-            {/* Visor Silver Edge Binding */}
-            <mesh position={[0, 0.012, 0]} material={materials.platinumSilver}>
-              <cylinderGeometry args={[0.545, 0.545, 0.007, 32, 1, false, Math.PI * 0.22, Math.PI * 0.56]} />
-            </mesh>
-          </group>
-
-          {/* Chin Strap (Front Band) with Silver Fastening Buttons */}
-          <mesh position={[0, -0.02, 0.4]} rotation={[0.05, 0, 0]} material={materials.dutyLeather}>
-            <boxGeometry args={[0.74, 0.04, 0.22]} />
-          </mesh>
-          {[-0.48, 0.48].map((x, i) => (
-            <mesh
-              key={`cap-side-btn-${i}`}
-              position={[x, -0.02, 0.14]}
-              rotation={[0, i === 0 ? -Math.PI / 2 : Math.PI / 2, 0]}
-              material={materials.platinumSilver}
-            >
-              <cylinderGeometry args={[0.038, 0.038, 0.03, 12]} />
-            </mesh>
-          ))}
-
-          {/* Ornate Front Cap Badge (Platinum Silver Star in Shield) */}
-          <group position={[0, 0.14, 0.58]} rotation={[-0.08, 0, 0]}>
-            <mesh geometry={capBadgeGeom} material={materials.platinumSilver} scale={0.72} />
-            <mesh position={[0, 0.015, 0.035]} geometry={starGeom} material={materials.brightSilver} scale={0.68} />
-            <mesh position={[0, 0.015, 0.05]} material={materials.platinumSilver}>
-              <sphereGeometry args={[0.02, 8, 8]} />
-            </mesh>
-          </group>
-        </group>
-      </group>
-
-      {/* ========================================================
-          2. ANATOMICAL NECK & UNIFORM COLLAR (Full 360° Blend)
-         ======================================================== */}
-      <group position={[0, 1.22, 0]}>
-        {/* Natural Neck with cervical forward tilt */}
-        <mesh position={[0, 0.02, -0.02]} rotation={[0.06, 0, 0]} material={materials.skin}>
-          <cylinderGeometry args={[0.22, 0.28, 0.42, 24]} />
-        </mesh>
-
-        {/* Sternocleidomastoid Muscle Curves (Front Neck) */}
-        {[-0.09, 0.09].map((x, i) => (
-          <mesh
-            key={`scm-${i}`}
-            position={[x, -0.04, 0.09]}
-            rotation={[0.12, 0, i === 0 ? -0.15 : 0.15]}
-            material={materials.skin}
-            scale={[0.04, 0.28, 0.05]}
-          >
-            <cylinderGeometry args={[1, 1, 1, 8]} />
-          </mesh>
-        ))}
-
-        {/* Inner Shirt Collar Stand */}
-        <mesh position={[0, -0.1, -0.01]} material={materials.uniformDark}>
-          <cylinderGeometry args={[0.29, 0.34, 0.18, 24]} />
-        </mesh>
-
-        {/* Left & Right Pressed Shirt Collar Wings */}
-        {[-0.14, 0.14].map((x, i) => (
-          <group
-            key={`collar-wing-${i}`}
-            position={[x, -0.12, 0.22]}
-            rotation={[0.28, i === 0 ? 0.28 : -0.28, i === 0 ? -0.16 : 0.16]}
-          >
-            <mesh material={materials.uniformDark}>
-              <boxGeometry args={[0.2, 0.24, 0.028]} />
-            </mesh>
-          </group>
-        ))}
-
-        {/* Rear Collar Band (Seamless 360° back coverage) */}
-        <mesh position={[0, -0.08, -0.24]} rotation={[-0.15, 0, 0]} material={materials.uniformDark}>
-          <boxGeometry args={[0.38, 0.14, 0.03]} />
-        </mesh>
-
-        {/* Lapel Radio Mic with Coiled Cord */}
-        <group position={[0, -0.24, 0.32]} rotation={[0.06, 0, 0]}>
-          <mesh material={materials.equipmentPolymer}>
-            <boxGeometry args={[0.13, 0.17, 0.08]} />
-          </mesh>
-          <mesh position={[0, 0.02, 0.042]} material={materials.platinumSilver}>
-            <boxGeometry args={[0.08, 0.05, 0.01]} />
-          </mesh>
-          <mesh position={[0, 0.085, 0.015]} material={materials.platinumSilver}>
-            <boxGeometry args={[0.05, 0.035, 0.03]} />
-          </mesh>
-          {/* Microphone coiled wire tucking into shirt */}
-          <mesh position={[0.025, -0.15, 0.02]} rotation={[0, 0, 0.2]} material={materials.equipmentPolymer}>
-            <cylinderGeometry args={[0.015, 0.015, 0.16, 8]} />
-          </mesh>
-        </group>
-      </group>
-
-      {/* ========================================================
-          3. TORSO & POLICE SHIRT (Natural V-Taper Anatomy)
-         ======================================================== */}
-      <group ref={torsoGroupRef} position={[0, 0.58, 0]}>
-        {/* Trapezius Slope & Shoulder Yoke (Smooth Neck-to-Shoulder Bridge) */}
-        <mesh position={[0, 0.44, 0.01]} rotation={[0, 0, 0]} material={materials.uniform}>
-          <cylinderGeometry args={[0.42, 0.72, 0.26, 24]} />
-        </mesh>
-
-        {/* Main Upper Chest & Back (Natural athletic chest volume) */}
-        <mesh position={[0, 0.18, 0.02]} material={materials.uniform} scale={[1.28, 1, 0.88]}>
-          <cylinderGeometry args={[0.54, 0.46, 0.58, 24]} />
-        </mesh>
-
-        {/* Lower Torso / Waist Taper into Duty Belt */}
-        <mesh position={[0, -0.22, 0.01]} material={materials.uniform} scale={[1.14, 1, 0.82]}>
-          <cylinderGeometry args={[0.46, 0.42, 0.48, 24]} />
-        </mesh>
-
-        {/* Back Shirt Yoke & Tailoring Seams (360° detail) */}
-        <mesh position={[0, 0.32, -0.32]} rotation={[-0.08, 0, 0]} material={materials.uniformDark}>
-          <boxGeometry args={[0.82, 0.18, 0.02]} />
-        </mesh>
-        <mesh position={[0, -0.05, -0.31]} material={materials.uniformDark}>
-          <boxGeometry args={[0.03, 0.62, 0.015]} />
-        </mesh>
-
-        {/* Front Center Button Placket */}
-        <mesh position={[0, -0.02, 0.36]} material={materials.uniformDark}>
-          <boxGeometry args={[0.09, 0.98, 0.025]} />
-        </mesh>
-
-        {/* 5 Uniform Shank Buttons (Platinum Silver) */}
-        {[0.32, 0.14, -0.04, -0.22, -0.4].map((y, i) => (
-          <mesh
-            key={`placket-btn-${i}`}
-            position={[0, y, 0.38]}
-            rotation={[Math.PI / 2, 0, 0]}
-            material={materials.platinumSilver}
-          >
-            <cylinderGeometry args={[0.024, 0.024, 0.012, 12]} />
-          </mesh>
-        ))}
-
-        {/* Left Chest Pocket with Button Flap & Pen */}
-        <group position={[0.28, 0.12, 0.35]} rotation={[0.04, 0.06, 0]}>
-          <mesh material={materials.uniform}>
-            <boxGeometry args={[0.3, 0.34, 0.025]} />
-          </mesh>
-          {/* Center pleat */}
-          <mesh position={[0, 0, 0.015]} material={materials.uniformDark}>
-            <boxGeometry args={[0.035, 0.34, 0.01]} />
-          </mesh>
-          {/* Pointed Flap */}
-          <mesh position={[0, 0.15, 0.02]} rotation={[0.06, 0, 0]} material={materials.uniformDark}>
-            <boxGeometry args={[0.32, 0.1, 0.025]} />
-          </mesh>
-          <mesh position={[0, 0.12, 0.038]} rotation={[Math.PI / 2, 0, 0]} material={materials.platinumSilver}>
-            <cylinderGeometry args={[0.022, 0.022, 0.012, 10]} />
-          </mesh>
-          {/* Silver Clip Pen inserted in pocket */}
-          <mesh position={[0.11, 0.18, 0.03]} rotation={[0, 0, 0.04]} material={materials.platinumSilver}>
-            <cylinderGeometry args={[0.01, 0.01, 0.14, 8]} />
-          </mesh>
-
-          {/* Platinum Silver Police Shield Badge pinned over left pocket */}
-          <group position={[0, 0.28, 0.05]} rotation={[-0.04, 0, 0]}>
-            <mesh geometry={chestBadgeGeom} material={materials.platinumSilver} scale={0.75} />
-            <mesh position={[0, 0.015, 0.03]} geometry={starGeom} material={materials.brightSilver} scale={0.68} />
-            <mesh position={[0, 0.015, 0.045]} material={materials.badgeSeal}>
-              <sphereGeometry args={[0.02, 8, 8]} />
-            </mesh>
-          </group>
-        </group>
-
-        {/* Right Chest Pocket with Nameplate */}
-        <group position={[-0.28, 0.12, 0.35]} rotation={[0.04, -0.06, 0]}>
-          <mesh material={materials.uniform}>
-            <boxGeometry args={[0.3, 0.34, 0.025]} />
-          </mesh>
-          {/* Center pleat */}
-          <mesh position={[0, 0, 0.015]} material={materials.uniformDark}>
-            <boxGeometry args={[0.035, 0.34, 0.01]} />
-          </mesh>
-          {/* Pointed Flap */}
-          <mesh position={[0, 0.15, 0.02]} rotation={[0.06, 0, 0]} material={materials.uniformDark}>
-            <boxGeometry args={[0.32, 0.1, 0.025]} />
-          </mesh>
-          <mesh position={[0, 0.12, 0.038]} rotation={[Math.PI / 2, 0, 0]} material={materials.platinumSilver}>
-            <cylinderGeometry args={[0.022, 0.022, 0.012, 10]} />
-          </mesh>
-
-          {/* Platinum Silver Nameplate above right pocket */}
-          <group position={[0, 0.26, 0.035]} rotation={[-0.04, 0, 0]}>
-            <mesh material={materials.platinumSilver}>
-              <boxGeometry args={[0.28, 0.075, 0.02]} />
-            </mesh>
-            <mesh position={[0, 0, 0.012]} material={materials.uniformDark}>
-              <boxGeometry args={[0.22, 0.022, 0.005]} />
-            </mesh>
-          </group>
-        </group>
-
-        {/* Shoulder Epaulettes (Straps with silver buttons & rank bars) */}
-        {[-0.52, 0.52].map((x, i) => (
-          <group key={`epaulet-${i}`} position={[x, 0.44, 0.02]} rotation={[0, 0, i === 0 ? 0.22 : -0.22]}>
-            <mesh material={materials.uniformDark}>
-              <boxGeometry args={[0.32, 0.035, 0.15]} />
-            </mesh>
-            <mesh
-              position={[i === 0 ? 0.12 : -0.12, 0.02, 0]}
-              material={materials.platinumSilver}
-            >
-              <cylinderGeometry args={[0.024, 0.024, 0.018, 10]} />
-            </mesh>
-            <mesh
-              position={[i === 0 ? -0.06 : 0.06, 0.02, 0]}
-              material={materials.platinumSilver}
-            >
-              <boxGeometry args={[0.05, 0.015, 0.09]} />
-            </mesh>
-          </group>
-        ))}
-      </group>
-
-      {/* ========================================================
-          4. ARMS & SLEEVES (Seamless Anatomical Connection)
-         ======================================================== */}
-      {/* Left Arm */}
-      <group ref={leftArmRef} position={[0.66, 0.98, 0.02]}>
-        {/* Anatomical Deltoid Joint */}
-        <mesh position={[0.04, -0.08, 0]} material={materials.uniform} scale={[1, 1.15, 0.95]}>
-          <sphereGeometry args={[0.2, 18, 18]} />
-        </mesh>
-        {/* Upper Arm Sleeve */}
-        <mesh position={[0.11, -0.42, 0]} rotation={[0, 0, -0.12]} material={materials.uniform}>
-          <cylinderGeometry args={[0.18, 0.16, 0.72, 16]} />
-        </mesh>
-        {/* Department Shoulder Patch (Side deltoid emblem) */}
-        <group position={[0.22, -0.22, 0]} rotation={[0, Math.PI / 2, 0]}>
-          <mesh material={materials.uniformDark}>
-            <boxGeometry args={[0.18, 0.24, 0.02]} />
-          </mesh>
-          <mesh position={[0, 0.06, 0.012]} material={materials.platinumSilver}>
-            <boxGeometry args={[0.14, 0.03, 0.01]} />
-          </mesh>
-        </group>
-        {/* Forearm & Cuff */}
-        <mesh position={[0.18, -0.9, 0.06]} rotation={[0.2, 0, -0.1]} material={materials.uniform}>
-          <cylinderGeometry args={[0.16, 0.14, 0.62, 16]} />
-        </mesh>
-        <mesh position={[0.22, -1.16, 0.12]} rotation={[0.2, 0, -0.1]} material={materials.uniformDark}>
-          <cylinderGeometry args={[0.145, 0.145, 0.08, 16]} />
-        </mesh>
-        {/* Hand in natural resting pose near belt */}
-        <mesh position={[0.25, -1.28, 0.16]} rotation={[0.2, 0, -0.1]} material={materials.skin} scale={[1, 1.1, 0.8]}>
-          <sphereGeometry args={[0.12, 14, 14]} />
-        </mesh>
-      </group>
-
-      {/* Right Arm */}
-      <group ref={rightArmRef} position={[-0.66, 0.98, 0.02]}>
-        {/* Anatomical Deltoid Joint */}
-        <mesh position={[-0.04, -0.08, 0]} material={materials.uniform} scale={[1, 1.15, 0.95]}>
-          <sphereGeometry args={[0.2, 18, 18]} />
-        </mesh>
-        {/* Upper Arm Sleeve */}
-        <mesh position={[-0.11, -0.42, 0]} rotation={[0, 0, 0.12]} material={materials.uniform}>
-          <cylinderGeometry args={[0.18, 0.16, 0.72, 16]} />
-        </mesh>
-        {/* Department Shoulder Patch */}
-        <group position={[-0.22, -0.22, 0]} rotation={[0, -Math.PI / 2, 0]}>
-          <mesh material={materials.uniformDark}>
-            <boxGeometry args={[0.18, 0.24, 0.02]} />
-          </mesh>
-          <mesh position={[0, 0.06, 0.012]} material={materials.platinumSilver}>
-            <boxGeometry args={[0.14, 0.03, 0.01]} />
-          </mesh>
-        </group>
-        {/* Forearm & Cuff */}
-        <mesh position={[-0.18, -0.9, 0.06]} rotation={[0.2, 0, 0.1]} material={materials.uniform}>
-          <cylinderGeometry args={[0.16, 0.14, 0.62, 16]} />
-        </mesh>
-        <mesh position={[-0.22, -1.16, 0.12]} rotation={[0.2, 0, 0.1]} material={materials.uniformDark}>
-          <cylinderGeometry args={[0.145, 0.145, 0.08, 16]} />
-        </mesh>
-        {/* Hand in natural resting pose */}
-        <mesh position={[-0.25, -1.28, 0.16]} rotation={[0.2, 0, 0.1]} material={materials.skin} scale={[1, 1.1, 0.8]}>
-          <sphereGeometry args={[0.12, 14, 14]} />
-        </mesh>
-      </group>
-
-      {/* ========================================================
-          5. DUTY BELT & FULL 360° POLICE EQUIPMENT
-         ======================================================== */}
-      <group position={[0, -0.06, 0]}>
-        {/* Contoured Leather Duty Belt */}
-        <mesh material={materials.dutyLeather} scale={[1.16, 1, 0.86]}>
-          <cylinderGeometry args={[0.49, 0.48, 0.18, 32]} />
-        </mesh>
-
-        {/* Front Rectangular Silver Belt Buckle */}
-        <group position={[0, 0, 0.46]}>
-          <mesh material={materials.platinumSilver}>
-            <boxGeometry args={[0.22, 0.2, 0.04]} />
-          </mesh>
-          <mesh position={[0, 0, 0.018]} material={materials.dutyLeather}>
-            <boxGeometry args={[0.14, 0.12, 0.02]} />
-          </mesh>
-          <mesh position={[0, 0, 0.025]} material={materials.platinumSilver}>
-            <boxGeometry args={[0.024, 0.14, 0.018]} />
-          </mesh>
-        </group>
-
-        {/* Front Belt Keepers with double snaps */}
-        {[-0.2, 0.2].map((x, i) => (
-          <group key={`front-keeper-${i}`} position={[x, 0, 0.44]}>
-            <mesh material={materials.dutyLeather}>
-              <boxGeometry args={[0.045, 0.19, 0.03]} />
-            </mesh>
-            <mesh position={[0, 0.045, 0.02]} material={materials.platinumSilver}>
-              <sphereGeometry args={[0.012, 8, 8]} />
-            </mesh>
-            <mesh position={[0, -0.045, 0.02]} material={materials.platinumSilver}>
-              <sphereGeometry args={[0.012, 8, 8]} />
-            </mesh>
-          </group>
-        ))}
-
-        {/* Right Hip: Service Weapon Holster with Contoured Grip */}
-        <group position={[-0.56, -0.16, 0.06]} rotation={[0.04, 0.15, 0.1]}>
-          {/* Molded Kydex/Leather Holster */}
-          <mesh material={materials.equipmentPolymer}>
-            <boxGeometry args={[0.15, 0.42, 0.22]} />
-          </mesh>
-          {/* Service Handgun Grip */}
-          <mesh position={[-0.01, 0.22, -0.04]} rotation={[-0.28, 0, 0]} material={materials.equipmentPolymer}>
-            <boxGeometry args={[0.075, 0.22, 0.12]} />
-          </mesh>
-          <mesh position={[-0.01, 0.22, 0.04]} material={materials.platinumSilver}>
-            <boxGeometry args={[0.05, 0.04, 0.06]} />
-          </mesh>
-        </group>
-
-        {/* Left Hip: Taser / Baton Case */}
-        <group position={[0.56, -0.12, 0.06]} rotation={[0.04, -0.15, -0.1]}>
-          <mesh material={materials.dutyLeather}>
-            <boxGeometry args={[0.14, 0.34, 0.2]} />
-          </mesh>
-          <mesh position={[0.05, 0.04, 0]} material={materials.platinumSilver}>
-            <sphereGeometry args={[0.018, 8, 8]} />
-          </mesh>
-        </group>
-
-        {/* Left Front: Double Magazine Case */}
-        <group position={[0.42, -0.02, 0.32]} rotation={[0, -0.45, 0]}>
-          <mesh material={materials.dutyLeather}>
-            <boxGeometry args={[0.12, 0.18, 0.12]} />
-          </mesh>
-          <mesh position={[0, 0.03, 0.065]} material={materials.platinumSilver}>
-            <sphereGeometry args={[0.015, 8, 8]} />
-          </mesh>
-        </group>
-
-        {/* Rear (Back View 360°): Double Handcuff Case & Radio Unit */}
-        <group position={[0.18, -0.04, -0.42]} rotation={[0, Math.PI, 0]}>
-          <mesh material={materials.dutyLeather}>
-            <boxGeometry args={[0.16, 0.18, 0.1]} />
-          </mesh>
-          <mesh position={[0, 0.03, 0.055]} material={materials.platinumSilver}>
-            <sphereGeometry args={[0.015, 8, 8]} />
-          </mesh>
-        </group>
-        <group position={[-0.2, -0.02, -0.42]} rotation={[0, Math.PI, 0]}>
-          <mesh material={materials.equipmentPolymer}>
-            <boxGeometry args={[0.13, 0.22, 0.1]} />
-          </mesh>
-          {/* Radio antenna pointing upwards */}
-          <mesh position={[-0.04, 0.18, 0]} material={materials.equipmentPolymer}>
-            <cylinderGeometry args={[0.012, 0.012, 0.22, 8]} />
-          </mesh>
-        </group>
-        {/* Rear Center Belt Keeper */}
-        <mesh position={[0, 0, -0.42]} material={materials.dutyLeather}>
-          <boxGeometry args={[0.045, 0.19, 0.03]} />
-        </mesh>
-      </group>
-
-      {/* Waist Cutoff Floor Base (Polished dark pedestal framing) */}
-      <mesh position={[0, -0.22, 0]} rotation={[Math.PI / 2, 0, 0]} material={materials.dutyLeather} scale={[1.14, 0.84, 1]}>
-        <cylinderGeometry args={[0.48, 0.48, 0.04, 32]} />
-      </mesh>
+      {/* 4. Full 360-Degree Duty Belt Gear Portal (Holster, Taser, Handcuffs, Radio, Buckle) */}
+      {bones.hips && createPortal(<DutyBeltGear materials={customMaterials} />, bones.hips)}
     </group>
   );
 }
+
+// Preload the rigged character model
+useGLTF.preload("/models/police_character.glb");

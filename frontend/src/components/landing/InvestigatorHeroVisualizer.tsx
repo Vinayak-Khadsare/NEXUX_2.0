@@ -1,83 +1,12 @@
 "use client";
-import React, { useState, useEffect, useRef, Suspense, Component, ErrorInfo, ReactNode } from "react";
+import React, { useState, useRef, Suspense } from "react";
 import { Canvas } from "@react-three/fiber";
-import { OrbitControls, useGLTF, useAnimations } from "@react-three/drei";
-import * as THREE from "three";
+import { OrbitControls } from "@react-three/drei";
 import PoliceInvestigatorModel from "./PoliceInvestigatorModel";
 
-// Error Boundary to prevent any GLTF parsing failure from breaking the canvas
-interface ErrorBoundaryProps {
-  fallback: ReactNode;
-  children: ReactNode;
-}
-interface ErrorBoundaryState {
-  hasError: boolean;
-}
-
-class ModelErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  constructor(props: ErrorBoundaryProps) {
-    super(props);
-    this.state = { hasError: false };
-  }
-  static getDerivedStateFromError(_: Error): ErrorBoundaryState {
-    return { hasError: true };
-  }
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.warn("External GLB load failed, falling back to procedural 3D model:", error, errorInfo);
-  }
-  render() {
-    if (this.state.hasError) {
-      return this.props.fallback;
-    }
-    return this.props.children;
-  }
-}
-
-// External GLTF/GLB loader if user provides /models/police_investigator.glb
-function ExternalGLBModel({ url }: { url: string }) {
-  const { scene, animations } = useGLTF(url);
-  const { actions } = useAnimations(animations, scene);
-
-  useEffect(() => {
-    // Traverse to enable shadows and adjust materials to NEXUS palette
-    scene.traverse((child) => {
-      if ((child as THREE.Mesh).isMesh) {
-        child.castShadow = true;
-        child.receiveShadow = true;
-      }
-    });
-
-    // Play first idle animation if exists in the rig
-    if (actions && Object.keys(actions).length > 0) {
-      const firstAction = Object.values(actions)[0];
-      firstAction?.reset().fadeIn(0.5).play();
-    }
-  }, [scene, actions]);
-
-  return <primitive object={scene} position={[0, -1.2, 0]} scale={1.6} />;
-}
-
 export default function InvestigatorHeroVisualizer() {
-  const [hasGlbModel, setHasGlbModel] = useState<boolean>(false);
   const [showReferenceModal, setShowReferenceModal] = useState<boolean>(false);
   const controlsRef = useRef<any>(null);
-
-  // Check if a real external GLB file was placed in /models/police_investigator.glb
-  useEffect(() => {
-    let active = true;
-    fetch("/models/police_investigator.glb", { method: "HEAD" })
-      .then((res) => {
-        if (active && res.ok && res.headers.get("content-type")?.includes("octet-stream")) {
-          setHasGlbModel(true);
-        }
-      })
-      .catch(() => {
-        // Silently keep default procedural 3D model
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
 
   const resetView = () => {
     if (controlsRef.current) {
@@ -154,15 +83,16 @@ export default function InvestigatorHeroVisualizer() {
           distance={8}
         />
 
-        {/* Model rendering with fallback */}
-        <Suspense fallback={null}>
-          {hasGlbModel ? (
-            <ModelErrorBoundary fallback={<PoliceInvestigatorModel />}>
-              <ExternalGLBModel url="/models/police_investigator.glb" />
-            </ModelErrorBoundary>
-          ) : (
-            <PoliceInvestigatorModel />
-          )}
+        {/* High-Fidelity Rigged 3D Character Rendering */}
+        <Suspense
+          fallback={
+            <mesh position={[0, 0.42, 0]}>
+              <octahedronGeometry args={[0.15, 0]} />
+              <meshBasicMaterial color="#C7CDD4" wireframe />
+            </mesh>
+          }
+        >
+          <PoliceInvestigatorModel />
         </Suspense>
 
         {/* 360-Degree Orbit Controls with sensible damping and vertical angle limits */}
