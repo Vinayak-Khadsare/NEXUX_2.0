@@ -29,7 +29,7 @@ export default function InvestigatorHeroVisualizer() {
       
       {/* 3D Canvas Visualizer */}
       <Canvas
-        camera={{ position: [0, 0.48, 3.8], fov: 38 }}
+        camera={{ position: [0, 0.46, 3.52], fov: 36 }}
         dpr={[1, 2]}
         gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
         className="w-full h-full cursor-grab active:cursor-grabbing"
@@ -37,50 +37,65 @@ export default function InvestigatorHeroVisualizer() {
         {/* Soft Background Depth Fog */}
         <fog attach="fog" args={["#080808", 7, 20]} />
 
-        {/* Studio Lighting Rig matching NEXUS Charcoal & Platinum Identity */}
-        <ambientLight intensity={0.75} color="#1D2128" />
+        {/* Studio Lighting Rig: High Contrast Separation Against Charcoal Background */}
+        <ambientLight intensity={0.9} color="#222830" />
         
-        {/* Key Light (Front-Left, crisp neutral illumination on face and badge) */}
+        {/* Key Light (Front-Left, crisp neutral illumination on face, cap and badges) */}
         <directionalLight
-          position={[3.0, 3.2, 3.8]}
-          intensity={2.6}
-          color="#F5F5F5"
+          position={[3.0, 3.4, 3.6]}
+          intensity={3.2}
+          color="#FFFFFF"
         />
 
-        {/* Fill Light (Front-Right, cool slate tone to balance shadows) */}
+        {/* Fill Light (Front-Right, cool slate tone to balance uniform shadows) */}
         <directionalLight
-          position={[-3.2, 1.4, 3.0]}
-          intensity={1.1}
-          color="#94A3B8"
+          position={[-3.0, 1.8, 3.0]}
+          intensity={1.5}
+          color="#BAC4CE"
         />
 
-        {/* Front Soft Center Fill (Ensures face is clearly visible without harsh shadows) */}
+        {/* Front Soft Center Fill (Ensures face, tie and placket details are visible) */}
         <directionalLight
-          position={[0, 0.8, 3.5]}
-          intensity={0.6}
+          position={[0, 0.9, 3.4]}
+          intensity={1.0}
+          color="#DCE2E8"
+        />
+
+        {/* High-Intensity Platinum Rim Light 1 (Rear-Left for sharp shoulder & cap silhouette) */}
+        <directionalLight
+          position={[3.4, 2.8, -3.2]}
+          intensity={5.4}
           color="#E2E8F0"
         />
 
-        {/* Platinum Silver Rim Light 1 (Rear-Left for sharp shoulder & cap silhouette) */}
+        {/* High-Intensity Platinum Rim Light 2 (Rear-Right edge highlight for 360° definition) */}
         <directionalLight
-          position={[3.2, 2.6, -3.2]}
-          intensity={4.2}
-          color="#C7CDD4"
+          position={[-3.4, 2.4, -3.2]}
+          intensity={5.0}
+          color="#CBD5E1"
         />
 
-        {/* Platinum Silver Rim Light 2 (Rear-Right edge highlight for 360° definition) */}
+        {/* Overhead Top-Down Hair & Cap Crown Rim Light */}
         <directionalLight
-          position={[-3.2, 2.2, -3.2]}
-          intensity={3.6}
-          color="#AEB7C2"
+          position={[0, 4.2, -1.0]}
+          intensity={2.5}
+          color="#FFFFFF"
         />
 
         {/* Overhead Badge & Insignia Spotlight */}
         <pointLight
-          position={[0, 3.6, 1.0]}
-          intensity={1.8}
+          position={[0, 3.6, 1.2]}
+          intensity={2.2}
           color="#F8FAFC"
           distance={8}
+        />
+
+        {/* Soft Badge & Nameplate Specular Fill */}
+        <pointLight
+          position={[-0.2, 1.4, 2.0]}
+          intensity={1.2}
+          color="#F0F4F8"
+          distance={6}
         />
 
         {/* High-Fidelity Rigged 3D Character Rendering */}
@@ -98,7 +113,7 @@ export default function InvestigatorHeroVisualizer() {
         {/* 360-Degree Orbit Controls with sensible damping and vertical angle limits */}
         <OrbitControls
           ref={controlsRef}
-          target={[0, 0.42, 0]}
+          target={[0, 0.44, 0]}
           enablePan={false}
           enableZoom={true}
           enableDamping={true}
