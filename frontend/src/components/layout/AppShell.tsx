@@ -12,7 +12,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const { loadingCases } = useCase();
 
   // Pages that don't need a sidebar wrapper
-  const isPublicPage = pathname === "/" || pathname === "/login";
+  const isPublicPage = pathname === "/" || pathname === "/login" || pathname === "/forgot-password" || pathname === "/verify-otp" || pathname === "/reset-password";
 
   if (isPublicPage) {
     return <>{children}</>;

@@ -15,10 +15,15 @@
   --surface-secondary: #F8FAFC;
   --surface-tertiary: #EEF2F6;
   --surface-hover: #F1F5F9;
+  --surface-nav: #FFFFFF;
 
   /* BORDERS & DIVIDERS */
+  --border: #E2E8F0;
   --border-primary: #E2E8F0;
   --border-secondary: #CBD5E1;
+  --border-strong: #CBD5E1;
+  --border-input: #E2E8F0;
+  --border-input-hover: #94A3B8;
   --divider-subtle: #EEF2F6;
   
   /* TYPOGRAPHY */
@@ -26,6 +31,7 @@
   --text-secondary: #64748B;
   --text-muted: #94A3B8;
   --text-tertiary: #94A3B8;
+  --text-disabled: #CBD5E1;
 
   /* PRIMARY NEXUS GREEN ACCENTS */
   --accent-primary: #08A66A;
@@ -34,10 +40,14 @@
   --accent-secondary: #08A66A;
   --primary-accent: #08A66A;
   --primary-hover: #059669;
+  --focus-indicator: #08A66A;
 
   /* LIGHT GREEN & SELECTED BACKGROUNDS */
   --bg-green-light: #ECFDF5;
   --bg-selected: #F0FDF4;
+  --bg-input: #FFFFFF;
+  --bg-graph: #F8FAFC;
+  --surface-elevated: #FFFFFF;
 
   /* STATUS & SYSTEM COLORS */
   --danger: #DC2626;
@@ -65,55 +75,72 @@
 }
 
 .dark {
-  /* DARK MODE (Current Premium Intelligence Platform - 100% UNTOUCHED) */
-  --app-background: #0B1120;
-  --foreground: #F9FAFB;
+  /* DARK MODE - Charcoal Black + Platinum Silver */
+  --app-background: #080808;
+  --foreground: #F5F5F5;
 
-  --surface-primary: #111827;
-  --surface-secondary: #1F2937;
-  --surface-tertiary: #374151;
-  --surface-hover: #1F2937;
+  /* SURFACES */
+  --surface-primary: #151515;
+  --surface-secondary: #1C1C1C;
+  --surface-tertiary: #1C1C1C;
+  --surface-elevated: #1C1C1C;
+  --surface-hover: #222222;
+  --surface-nav: #101010;
 
-  --border-primary: #374151;
-  --border-secondary: #4B5563;
-  --divider-subtle: #374151;
+  /* BORDERS & DIVIDERS */
+  --border: #303030;
+  --border-primary: #303030;
+  --border-secondary: #454545;
+  --border-strong: #454545;
+  --border-input: #383838;
+  --border-input-hover: #555555;
+  --divider-subtle: #303030;
   
-  --text-primary: #F9FAFB;
-  --text-secondary: #D1D5DB;
-  --text-muted: #9CA3AF;
-  --text-tertiary: #9CA3AF;
+  /* TYPOGRAPHY */
+  --text-primary: #F5F5F5;
+  --text-secondary: #A1A1AA;
+  --text-muted: #858B93;
+  --text-tertiary: #858B93;
+  --text-disabled: #62666D;
 
-  --accent-primary: #3B82F6;
-  --accent-secondary: #60A5FA;
-  --accent-dark: #2563EB;
-  --accent-hover: #60A5FA;
-  --primary-accent: #3B82F6;
-  --primary-hover: #60A5FA;
+  /* PLATINUM SILVER ACCENTS */
+  --accent-primary: #C7CDD4;
+  --accent-secondary: #858B93;
+  --accent-dark: #858B93;
+  --accent-hover: #E0E4E8;
+  --primary-accent: #C7CDD4;
+  --primary-hover: #E0E4E8;
+  --focus-indicator: #AEB7C2;
 
-  --bg-green-light: rgba(52, 211, 153, 0.1);
-  --bg-selected: rgba(59, 130, 246, 0.15);
+  /* BACKGROUNDS & SELECTIONS */
+  --bg-green-light: rgba(34, 197, 94, 0.1);
+  --bg-selected: #292929;
+  --bg-input: #111111;
+  --bg-graph: #111111;
 
-  --danger: #F87171;
-  --danger-bg: rgba(248, 113, 113, 0.1);
-  --danger-border: rgba(248, 113, 113, 0.3);
-  --danger-text: #F87171;
+  /* SEMANTIC STATUS COLORS */
+  --danger: #EF4444;
+  --danger-bg: rgba(239, 68, 68, 0.12);
+  --danger-border: rgba(239, 68, 68, 0.35);
+  --danger-text: #EF4444;
 
-  --warning: #FBBF24;
-  --warning-bg: rgba(251, 191, 36, 0.1);
-  --warning-border: rgba(251, 191, 36, 0.3);
-  --warning-text: #FBBF24;
+  --warning: #F59E0B;
+  --warning-bg: rgba(245, 158, 11, 0.12);
+  --warning-border: rgba(245, 158, 11, 0.35);
+  --warning-text: #F59E0B;
 
-  --success: #34D399;
-  --success-bg: rgba(52, 211, 153, 0.1);
-  --success-text: #34D399;
+  --success: #22C55E;
+  --success-bg: rgba(34, 197, 94, 0.12);
+  --success-text: #22C55E;
 
   --info: #60A5FA;
-  --info-bg: rgba(96, 165, 250, 0.1);
+  --info-bg: rgba(96, 165, 250, 0.12);
 
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.2);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -2px rgba(0, 0, 0, 0.2);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.2), 0 4px 6px -4px rgba(0, 0, 0, 0.2);
-  --shadow-card: 0 20px 60px -20px rgba(0, 0, 0, 0.6);
+  /* SHADOWS (Restrained, professional) */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --shadow-card: 0 4px 16px rgba(0, 0, 0, 0.22);
 }
 
 body {
@@ -196,6 +223,18 @@ body {
 .light .btn-primary:hover {
   background-color: #087A52;
   box-shadow: 0 2px 6px rgba(8, 122, 82, 0.3);
+}
+
+/* Dark mode primary button (Platinum Silver background with dark text) */
+.dark .btn-primary {
+  background-color: var(--accent-primary);
+  color: #000000;
+  border: none;
+  font-weight: 600;
+}
+.dark .btn-primary:hover {
+  background-color: var(--accent-hover);
+  color: #000000;
 }
 
 .btn-secondary {
@@ -331,6 +370,35 @@ body {
   color: #08A66A;
 }
 
+.dark .sidebar-nav-item.active {
+  background-color: #292929;
+  color: #F5F5F5;
+  border: 1px solid #303030;
+  border-left: 3px solid #C7CDD4;
+  box-shadow: none;
+  font-weight: 700;
+}
+.dark .sidebar-nav-item.active span:first-child,
+.dark .sidebar-nav-item.active i,
+.dark .sidebar-nav-item.active svg {
+  color: #C7CDD4;
+}
+.dark .sidebar-nav-item.inactive {
+  color: #D4D4D8;
+}
+.dark .sidebar-nav-item.inactive span:first-child,
+.dark .sidebar-nav-item.inactive i {
+  color: #858B93;
+}
+.dark .sidebar-nav-item.inactive:hover {
+  background-color: #222222;
+  color: #F5F5F5;
+}
+.dark .sidebar-nav-item.inactive:hover span:first-child,
+.dark .sidebar-nav-item.inactive:hover i {
+  color: #C7CDD4;
+}
+
 /* Filter Tabs */
 .filter-tab {
   padding: 0.5rem 1rem;
@@ -369,6 +437,22 @@ body {
 .light .filter-tab.inactive:hover {
   background-color: #F8FAFC;
   color: #172033;
+}
+
+.dark .filter-tab.active {
+  background-color: #292929;
+  color: #F5F5F5;
+  border: 1px solid #C7CDD4;
+}
+.dark .filter-tab.inactive {
+  background-color: #151515;
+  border: 1px solid #303030;
+  color: #A1A1AA;
+}
+.dark .filter-tab.inactive:hover {
+  background-color: #222222;
+  color: #F5F5F5;
+  border-color: #454545;
 }
 
 /* Chatbot Floating Button */
@@ -414,6 +498,19 @@ body {
 }
 .light .chat-ping {
   background-color: #08A66A;
+}
+
+.dark .chat-floating-btn {
+  background: #C7CDD4;
+  color: #101010;
+  box-shadow: 0 10px 25px -5px rgba(199, 205, 212, 0.25);
+}
+.dark .chat-floating-btn:hover {
+  background: #F5F5F5;
+  box-shadow: 0 10px 25px -5px rgba(245, 245, 245, 0.4);
+}
+.dark .chat-ping {
+  background-color: #C7CDD4;
 }
 
 /* Alert Cards */
@@ -496,6 +593,155 @@ body {
   background: #F8FAFC;
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
   transform: translateY(-1px);
+}
+
+/* --- Dark Mode Charcoal Black + Platinum Silver Component Styling --- */
+.dark .card {
+  background-color: #151515;
+  border: 1px solid #303030;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.22);
+}
+.dark .card:hover {
+  border-color: #454545;
+}
+
+.dark .input-field {
+  background-color: #111111;
+  border: 1px solid #383838;
+  color: #F5F5F5;
+}
+.dark .input-field::placeholder {
+  color: #858B93;
+}
+.dark .input-field:hover {
+  border-color: #555555;
+}
+.dark .input-field:focus {
+  border-color: #AEB7C2;
+  box-shadow: 0 0 0 1px #AEB7C2;
+}
+
+.dark .btn-primary,
+.dark button.bg-\[var\(--accent-primary\)\],
+.dark button.bg-\[var\(--primary-accent\)\],
+.dark a.bg-\[var\(--accent-primary\)\],
+.dark a.bg-\[var\(--primary-accent\)\] {
+  background-color: #C7CDD4 !important;
+  color: #101010 !important;
+  border: none !important;
+  font-weight: 600;
+}
+.dark .btn-primary:hover,
+.dark button.bg-\[var\(--accent-primary\)\]:hover,
+.dark button.bg-\[var\(--primary-accent\)\]:hover,
+.dark a.bg-\[var\(--accent-primary\)\]:hover,
+.dark a.bg-\[var\(--primary-accent\)\]:hover {
+  background-color: #E0E4E8 !important;
+  color: #101010 !important;
+}
+
+.dark .btn-secondary {
+  background-color: #1C1C1C;
+  border: 1px solid #454545;
+  color: #F5F5F5;
+  font-weight: 500;
+}
+.dark .btn-secondary:hover {
+  background-color: #292929;
+  border-color: #C7CDD4;
+}
+
+.dark .btn-neutral {
+  border: 1px solid #454545;
+  background: #1C1C1C;
+  color: #F5F5F5;
+}
+.dark .btn-neutral:hover {
+  border-color: #C7CDD4;
+  background: #292929;
+}
+
+.dark .btn-danger {
+  background-color: rgba(239, 68, 68, 0.12);
+  color: #EF4444;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+.dark .btn-danger:hover {
+  background-color: #EF4444;
+  color: #FFFFFF;
+}
+
+.dark .sidebar-nav-item.active {
+  background-color: #292929 !important;
+  color: #F5F5F5 !important;
+  border: 1px solid #303030 !important;
+  border-left: 3px solid #C7CDD4 !important;
+}
+.dark .sidebar-nav-item.inactive {
+  color: #D4D4D8 !important;
+}
+.dark .sidebar-nav-item.inactive:hover {
+  background-color: #222222 !important;
+  color: #F5F5F5 !important;
+}
+
+.dark .filter-tab.active {
+  background-color: #292929 !important;
+  color: #F5F5F5 !important;
+  border: 1px solid #C7CDD4 !important;
+}
+.dark .filter-tab.inactive {
+  background-color: #151515 !important;
+  border: 1px solid #303030 !important;
+  color: #A1A1AA !important;
+}
+.dark .filter-tab.inactive:hover {
+  background-color: #222222 !important;
+  color: #F5F5F5 !important;
+  border-color: #454545 !important;
+}
+
+.dark .prompt-card {
+  background: #1C1C1C;
+  border: 1px solid #303030;
+  color: #F5F5F5;
+}
+.dark .prompt-card:hover {
+  background: #222222;
+  border-color: #454545;
+}
+
+.dark .chat-input-field {
+  background: #111111;
+  border: 1px solid #383838;
+  color: #F5F5F5;
+}
+.dark .chat-input-field:focus {
+  border-color: #AEB7C2;
+  box-shadow: 0 0 0 1px #AEB7C2;
+}
+
+/* Dark Mode Table Styling */
+.dark table {
+  background-color: #151515;
+}
+.dark th,
+.dark thead tr {
+  background-color: #1C1C1C !important;
+  color: #F5F5F5 !important;
+  border-bottom: 1px solid #303030 !important;
+}
+.dark td {
+  color: #D4D4D8;
+  border-bottom: 1px solid #303030;
+}
+.dark tbody tr:hover,
+.dark tr:hover td {
+  background-color: #222222 !important;
+}
+.dark tbody tr.selected,
+.dark tbody tr[aria-selected="true"] {
+  background-color: #292929 !important;
 }
 
 /* Global Typography Hierarchy applied globally */

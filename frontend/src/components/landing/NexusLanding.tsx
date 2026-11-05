@@ -10,7 +10,7 @@ import { footerContent } from '@/content/footer';
 
 export default function NexusLanding() {
   return (
-    <div className="bg-[#050B16] min-h-screen text-white font-sans selection:bg-[#3B82F6]/30">
+    <div className="bg-[#000000] min-h-screen text-[#F5F5F5] font-sans selection:bg-[#C7CDD4]/30 selection:text-[#F5F5F5]">
       <LandingNavbar />
       
       <Hero />
@@ -23,7 +23,7 @@ export default function NexusLanding() {
 
       {/* Minimal Footer */}
       <footer className="py-8 bg-nexus-bg-base border-t border-nexus-glass-border text-center relative z-20">
-        <p className="text-nexus-text-muted text-sm font-display font-medium tracking-wide">
+        <p className="text-[#A1A1AA] text-sm font-display font-medium tracking-wide">
           &copy; {new Date().getFullYear()} {footerContent.logo} {footerContent.tagline}. ALL RIGHTS RESERVED.
         </p>
       </footer>

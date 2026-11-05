@@ -29,8 +29,8 @@ function IntelligenceCore() {
       {/* Central Core */}
       <Sphere ref={coreRef} args={[1.5, 32, 32]}>
         <meshStandardMaterial 
-          color="#22D3EE" 
-          emissive="#22D3EE"
+          color="#EF4444" 
+          emissive="#EF4444"
           emissiveIntensity={0.5}
           transparent 
           opacity={0.8}
@@ -41,8 +41,8 @@ function IntelligenceCore() {
       {/* Inner Solid Core */}
       <Sphere args={[0.8, 32, 32]}>
         <meshStandardMaterial 
-          color="#3B82F6" 
-          emissive="#3B82F6"
+          color="#858B93" 
+          emissive="#858B93"
           emissiveIntensity={1}
         />
       </Sphere>
@@ -50,12 +50,12 @@ function IntelligenceCore() {
       {/* Orbital Rings */}
       <mesh ref={ringRef1} rotation={[Math.PI / 4, 0, 0]}>
         <torusGeometry args={[2.5, 0.02, 16, 100]} />
-        <meshStandardMaterial color="#3B82F6" emissive="#3B82F6" emissiveIntensity={0.5} />
+        <meshStandardMaterial color="#C7CDD4" emissive="#C7CDD4" emissiveIntensity={0.5} />
       </mesh>
 
       <mesh ref={ringRef2} rotation={[0, Math.PI / 3, 0]}>
         <torusGeometry args={[3.2, 0.01, 16, 100]} />
-        <meshStandardMaterial color="#7C3AED" emissive="#7C3AED" emissiveIntensity={0.3} transparent opacity={0.6} />
+        <meshStandardMaterial color="#858B93" emissive="#858B93" emissiveIntensity={0.3} transparent opacity={0.6} />
       </mesh>
     </group>
   );
@@ -119,8 +119,8 @@ function IntelligenceNetwork() {
           {node.type === 1 && <boxGeometry args={[0.2, 0.2, 0.2]} />}
           {node.type === 2 && <coneGeometry args={[0.15, 0.3, 16]} />}
           <meshStandardMaterial 
-            color={node.type === 0 ? "#22D3EE" : node.type === 1 ? "#3B82F6" : "#7C3AED"} 
-            emissive={node.type === 0 ? "#22D3EE" : node.type === 1 ? "#3B82F6" : "#7C3AED"}
+            color={node.type === 0 ? "#C7CDD4" : node.type === 1 ? "#858B93" : "#F5F5F5"} 
+            emissive={node.type === 0 ? "#C7CDD4" : node.type === 1 ? "#858B93" : "#F5F5F5"} 
             emissiveIntensity={0.8}
           />
         </mesh>
@@ -130,7 +130,7 @@ function IntelligenceNetwork() {
       {lines.map((line, i) => {
         const geometry = new THREE.BufferGeometry().setFromPoints(line);
         return (
-          <primitive key={`line-${i}`} object={new THREE.Line(geometry, new THREE.LineBasicMaterial({ color: "#3B82F6", transparent: true, opacity: 0.15 }))} />
+          <primitive key={`line-${i}`} object={new THREE.Line(geometry, new THREE.LineBasicMaterial({ color: "#858B93", transparent: true, opacity: 0.25 }))} />
         );
       })}
     </group>
@@ -158,13 +158,13 @@ export default function NexusScene() {
   return (
     <div className="absolute inset-0 z-0">
       <Canvas camera={{ position: [8, 2, 10], fov: 45 }} dpr={[1, 2]}>
-        <color attach="background" args={['#050B16']} />
-        <fog attach="fog" args={['#050B16', 10, 30]} />
+        <color attach="background" args={['#000000']} />
+        <fog attach="fog" args={['#000000', 10, 30]} />
         
-        <ambientLight intensity={0.2} />
-        <pointLight position={[0, 0, 0]} intensity={2} color="#22D3EE" distance={20} />
-        <pointLight position={[10, 10, 10]} intensity={1} color="#3B82F6" />
-        <directionalLight position={[-10, -10, -10]} intensity={0.5} color="#7C3AED" />
+        <ambientLight intensity={0.35} />
+        <pointLight position={[0, 0, 0]} intensity={1.8} color="#C7CDD4" distance={20} />
+        <pointLight position={[10, 10, 10]} intensity={1.2} color="#858B93" />
+        <directionalLight position={[-10, -10, -10]} intensity={0.5} color="#F5F5F5" />
 
         <Stars radius={50} depth={20} count={3000} factor={4} saturation={0} fade speed={1} />
         

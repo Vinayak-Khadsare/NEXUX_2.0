@@ -170,16 +170,16 @@ export default function GlobalChatbot() {
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
-          className="chat-floating-btn relative group w-14 h-14 flex items-center justify-center rounded-full bg-zinc-900 border border-white/10 hover:border-blue-500/50 hover:bg-zinc-800 hover:shadow-[0_0_20px_rgba(59,130,246,0.3)] transition-all duration-200 active:scale-95 shadow-xl"
+          className="chat-floating-btn relative group w-14 h-14 flex items-center justify-center rounded-full bg-zinc-900 border border-white/10 hover:border-blue-500/50 hover:bg-zinc-800 hover:shadow-[0_0_20px_rgba(59,130,246,0.3)] dark:bg-[#1C1C1C] dark:border-[#303030] dark:hover:border-[#C7CDD4] dark:hover:bg-[#222222] transition-all duration-200 active:scale-95 shadow-xl"
           aria-label="Open NEXUS AI Agent"
           title="Open NEXUS AI Agent"
         >
-          <span className="chat-ping pointer-events-none group-hover:hidden absolute inset-0 rounded-full animate-ping bg-blue-500/20" />
-          <div className="relative flex items-center justify-center w-8 h-8 text-blue-400">
-            <svg className="absolute inset-0 w-full h-full text-blue-500/80" viewBox="0 0 100 100">
-              <polygon points="50,2 98,26 98,74 50,98 2,74 2,26" fill="rgba(37, 99, 235, 0.2)" stroke="currentColor" strokeWidth="6" />
+          <span className="chat-ping pointer-events-none group-hover:hidden absolute inset-0 rounded-full animate-ping bg-blue-500/20 dark:bg-[#C7CDD4]/20" />
+          <div className="relative flex items-center justify-center w-8 h-8 text-blue-400 dark:text-[#C7CDD4]">
+            <svg className="absolute inset-0 w-full h-full text-blue-500/80 dark:text-[#C7CDD4]" viewBox="0 0 100 100">
+              <polygon points="50,2 98,26 98,74 50,98 2,74 2,26" fill="rgba(37, 99, 235, 0.2)" className="dark:fill-[rgba(199,205,212,0.15)]" stroke="currentColor" strokeWidth="6" />
             </svg>
-            <span className="font-extrabold text-white text-sm z-10">N</span>
+            <span className="font-extrabold text-white dark:text-[#101010] text-sm z-10">N</span>
           </div>
         </button>
       )}
@@ -188,29 +188,29 @@ export default function GlobalChatbot() {
       {isOpen && isMinimized && (
         <button
           onClick={() => setIsMinimized(false)}
-          className="w-64 h-14 rounded-xl border border-white/10 bg-zinc-950/90 backdrop-blur-md shadow-2xl flex items-center justify-between px-4 hover:border-blue-500/40 hover:bg-zinc-900/90 transition-all duration-200 active:scale-95 cursor-pointer group"
+          className="w-64 h-14 rounded-xl border border-white/10 dark:border-[#303030] bg-zinc-950/90 dark:bg-[#1C1C1C]/95 backdrop-blur-md shadow-2xl flex items-center justify-between px-4 hover:border-blue-500/40 dark:hover:border-[#454545] hover:bg-zinc-900/90 dark:hover:bg-[#222222] transition-all duration-200 active:scale-95 cursor-pointer group"
           aria-label="Restore NEXUS AI Agent"
           title="Restore NEXUS AI Agent"
         >
           <div className="flex items-center gap-3">
-            <div className="relative flex items-center justify-center w-7 h-7 text-blue-400 shrink-0">
-              <svg className="absolute inset-0 w-full h-full text-blue-500/80 group-hover:text-blue-400 transition-colors" viewBox="0 0 100 100">
-                <polygon points="50,2 98,26 98,74 50,98 2,74 2,26" fill="rgba(37, 99, 235, 0.2)" stroke="currentColor" strokeWidth="6" />
+            <div className="relative flex items-center justify-center w-7 h-7 text-blue-400 dark:text-[#C7CDD4] shrink-0">
+              <svg className="absolute inset-0 w-full h-full text-blue-500/80 dark:text-[#C7CDD4] group-hover:text-blue-400 dark:group-hover:text-[#F5F5F5] transition-colors" viewBox="0 0 100 100">
+                <polygon points="50,2 98,26 98,74 50,98 2,74 2,26" fill="rgba(37, 99, 235, 0.2)" className="dark:fill-[rgba(199,205,212,0.15)]" stroke="currentColor" strokeWidth="6" />
               </svg>
-              <span className="font-extrabold text-white text-xs z-10">N</span>
+              <span className="font-extrabold text-white dark:text-[#101010] text-xs z-10">N</span>
             </div>
             <div className="flex flex-col items-start">
-              <h3 className="text-[11px] font-extrabold text-white tracking-wide uppercase">NEXUS AI</h3>
+              <h3 className="text-[11px] font-extrabold text-white dark:text-[#F5F5F5] tracking-wide uppercase">NEXUS AI</h3>
               <div className="flex items-center gap-1 mt-0.5">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="text-[8px] font-mono text-zinc-500 uppercase tracking-wider font-bold">ONLINE</span>
+                <span className="text-[8px] font-mono text-zinc-500 dark:text-[#A1A1AA] uppercase tracking-wider font-bold">ONLINE</span>
               </div>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <div 
               onClick={(e) => { e.stopPropagation(); setIsOpen(false); }}
-              className="text-zinc-500 hover:text-white p-1 rounded-md hover:bg-white/10 transition-colors cursor-pointer"
+              className="text-zinc-500 hover:text-white dark:hover:text-[#F5F5F5] p-1 rounded-md hover:bg-white/10 dark:hover:bg-white/5 transition-colors cursor-pointer"
               title="Close AI Agent"
               aria-label="Close AI Agent"
             >
@@ -222,22 +222,22 @@ export default function GlobalChatbot() {
 
       {/* Full Chat Box Panel */}
       {isOpen && !isMinimized && (
-        <div className="w-[90vw] sm:w-[420px] h-[75vh] sm:h-[600px] rounded-2xl border border-white/10 bg-zinc-950/95 backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.6)] flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-200">
+        <div className="w-[90vw] sm:w-[420px] h-[75vh] sm:h-[600px] rounded-2xl border border-white/10 dark:border-[#303030] bg-zinc-950/95 dark:bg-[#151515] backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.6)] flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-200">
           
           {/* Header Panel */}
-          <header className="px-5 py-4 border-b border-white/5 bg-gradient-to-r from-zinc-900/80 to-zinc-950/80 flex justify-between items-center shrink-0 shadow-sm relative">
+          <header className="px-5 py-4 border-b border-white/5 dark:border-[#303030] bg-gradient-to-r from-zinc-900/80 to-zinc-950/80 dark:from-[#1C1C1C] dark:to-[#151515] flex justify-between items-center shrink-0 shadow-sm relative">
             <div className="flex items-center gap-3">
-              <div className="relative flex items-center justify-center w-10 h-10 text-blue-400 drop-shadow-[0_0_12px_rgba(59,130,246,0.3)]">
-                <svg className="absolute inset-0 w-full h-full text-blue-500/80" viewBox="0 0 100 100">
-                  <polygon points="50,2 98,26 98,74 50,98 2,74 2,26" fill="rgba(37, 99, 235, 0.2)" stroke="currentColor" strokeWidth="5" className="backdrop-blur-sm" />
+              <div className="relative flex items-center justify-center w-10 h-10 text-blue-400 dark:text-[#C7CDD4] drop-shadow-[0_0_12px_rgba(59,130,246,0.3)] dark:drop-shadow-[0_0_12px_rgba(199,205,212,0.2)]">
+                <svg className="absolute inset-0 w-full h-full text-blue-500/80 dark:text-[#C7CDD4]" viewBox="0 0 100 100">
+                  <polygon points="50,2 98,26 98,74 50,98 2,74 2,26" fill="rgba(37, 99, 235, 0.2)" className="dark:fill-[rgba(199,205,212,0.15)]" stroke="currentColor" strokeWidth="5" />
                 </svg>
-                <span className="font-extrabold text-white text-[15px] z-10">N</span>
+                <span className="font-extrabold text-white dark:text-[#101010] text-[15px] z-10">N</span>
               </div>
               <div className="flex flex-col">
-                <h3 className="text-sm font-extrabold text-white tracking-widest uppercase drop-shadow-sm">NEXUS AI AGENT</h3>
+                <h3 className="text-sm font-extrabold text-white dark:text-[#F5F5F5] tracking-widest uppercase drop-shadow-sm">NEXUS AI AGENT</h3>
                 <div className="flex items-center gap-1.5 mt-1">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_5px_rgba(52,211,153,0.8)] animate-pulse" />
-                  <span className="text-[10px] font-mono text-zinc-400 uppercase tracking-wider font-semibold">ONLINE</span>
+                  <span className="text-[10px] font-mono text-zinc-400 dark:text-[#A1A1AA] uppercase tracking-wider font-semibold">ONLINE</span>
                 </div>
               </div>
             </div>
@@ -245,7 +245,7 @@ export default function GlobalChatbot() {
             <div className="flex items-center gap-1.5 relative z-10">
               <button 
                 onClick={() => setIsMinimized(true)}
-                className="w-7 h-7 flex items-center justify-center rounded-md text-zinc-400 hover:text-white hover:bg-white/10 border border-transparent hover:border-white/10 transition-all duration-200 cursor-pointer active:scale-90"
+                className="w-7 h-7 flex items-center justify-center rounded-md text-zinc-400 hover:text-white dark:hover:text-[#F5F5F5] hover:bg-white/10 dark:hover:bg-white/5 border border-transparent hover:border-white/10 dark:hover:border-[#303030] transition-all duration-200 cursor-pointer active:scale-90"
                 title="Minimize AI Agent"
                 aria-label="Minimize AI Agent"
               >
@@ -263,11 +263,11 @@ export default function GlobalChatbot() {
           </header>
 
           {/* Active Case Indicator */}
-          <div className="px-5 py-2.5 border-b border-white/5 bg-zinc-900/30 flex gap-2 justify-between items-center shrink-0">
-            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest flex items-center gap-1.5">
-              <i className="fa-solid fa-folder-open text-zinc-600"></i> Active Case:
+          <div className="px-5 py-2.5 border-b border-white/5 dark:border-[#303030] bg-zinc-900/30 dark:bg-[#1C1C1C] flex gap-2 justify-between items-center shrink-0">
+            <span className="text-[10px] font-bold text-zinc-500 dark:text-[#858B93] uppercase tracking-widest flex items-center gap-1.5">
+              <i className="fa-solid fa-folder-open text-zinc-600 dark:text-[#858B93]"></i> Active Case:
             </span>
-            <div className="text-[10px] font-bold text-blue-400">
+            <div className="text-[10px] font-bold text-blue-400 dark:text-[#C7CDD4]">
               {activeCaseId ? (activeCase?.name || activeCaseId) : "No active case selected"}
             </div>
           </div>
@@ -276,12 +276,12 @@ export default function GlobalChatbot() {
           <div className="flex-1 overflow-y-auto p-5 space-y-6 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-zinc-800/80 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-zinc-700">
             {messages.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-center p-6 max-w-[320px] mx-auto gap-5">
-                <div className="h-12 w-12 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-xl shadow-[0_0_15px_rgba(59,130,246,0.15)] text-blue-400">
+                <div className="h-12 w-12 rounded-xl bg-blue-500/10 dark:bg-[#C7CDD4]/10 border border-blue-500/20 dark:border-[#C7CDD4]/30 flex items-center justify-center text-xl shadow-[0_0_15px_rgba(59,130,246,0.15)] text-blue-400 dark:text-[#C7CDD4]">
                   <i className="fa-solid fa-microchip"></i>
                 </div>
                 <div>
-                  <h4 className="text-[12px] font-extrabold text-white tracking-widest uppercase">Investigation Agent</h4>
-                  <p className="text-[11px] text-zinc-400 mt-2.5 leading-relaxed">
+                  <h4 className="text-[12px] font-extrabold text-white dark:text-[#F5F5F5] tracking-widest uppercase">Investigation Agent</h4>
+                  <p className="text-[11px] text-zinc-400 dark:text-[#A1A1AA] mt-2.5 leading-relaxed">
                     Ask me for connection paths, suspect profiles, or high risk alerts.
                   </p>
                 </div>
@@ -292,9 +292,9 @@ export default function GlobalChatbot() {
                     <button 
                       key={idx}
                       onClick={() => handleSuggest(sug.text)}
-                      className="w-full text-left p-3.5 rounded-xl border border-white/5 hover:border-blue-500/30 bg-zinc-900/40 hover:bg-zinc-800/80 text-[10.5px] text-zinc-400 hover:text-zinc-200 transition-all duration-200 font-medium cursor-pointer whitespace-normal break-words leading-relaxed group shadow-sm"
+                      className="w-full text-left p-3.5 rounded-xl border border-white/5 dark:border-[#303030] hover:border-blue-500/30 dark:hover:border-[#454545] bg-zinc-900/40 dark:bg-[#1C1C1C] hover:bg-zinc-800/80 dark:hover:bg-[#222222] text-[10.5px] text-zinc-400 dark:text-[#A1A1AA] hover:text-zinc-200 dark:hover:text-[#F5F5F5] transition-all duration-200 font-medium cursor-pointer whitespace-normal break-words leading-relaxed group shadow-sm"
                     >
-                      <span className="mr-2 group-hover:text-blue-400 transition-colors">{sug.icon}</span> {sug.text}
+                      <span className="mr-2 group-hover:text-blue-400 dark:group-hover:text-[#C7CDD4] transition-colors">{sug.icon}</span> {sug.text}
                     </button>
                   ))}
                 </div>
@@ -307,23 +307,23 @@ export default function GlobalChatbot() {
                     msg.sender === "user" ? "ml-auto items-end" : "mr-auto items-start"
                   }`}
                 >
-                  <span className="text-[9px] text-zinc-500 mb-1.5 font-mono tracking-wide font-medium flex items-center gap-1.5">
+                  <span className="text-[9px] text-zinc-500 dark:text-[#858B93] mb-1.5 font-mono tracking-wide font-medium flex items-center gap-1.5">
                     {msg.sender === "user" ? (
-                      <>INVESTIGATOR <i className="fa-solid fa-user text-zinc-600 text-[8px]"></i></>
+                      <>INVESTIGATOR <i className="fa-solid fa-user text-zinc-600 dark:text-[#858B93] text-[8px]"></i></>
                     ) : (
-                      <><i className="fa-solid fa-robot text-blue-500 text-[9px]"></i> NEXUS AI</>
+                      <><i className="fa-solid fa-robot text-blue-500 dark:text-[#C7CDD4] text-[9px]"></i> NEXUS AI</>
                     )} 
-                    <span className="text-zinc-600 mx-0.5">•</span> 
+                    <span className="text-zinc-600 dark:text-[#858B93] mx-0.5">•</span> 
                     {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </span>
 
                   <div className={`p-4 rounded-2xl text-[12px] border leading-relaxed shadow-sm ${
                     msg.sender === "user" 
-                      ? "bg-blue-600/15 border-blue-500/20 text-white rounded-tr-sm" 
-                      : "bg-zinc-900 border-white/5 text-zinc-300 rounded-tl-sm shadow-md overflow-hidden"
+                      ? "bg-blue-600/15 border-blue-500/20 dark:bg-[#292929] dark:border-[#454545] text-white dark:text-[#F5F5F5] rounded-tr-sm" 
+                      : "bg-zinc-900 dark:bg-[#1C1C1C] border-white/5 dark:border-[#303030] text-zinc-300 dark:text-[#F5F5F5] rounded-tl-sm shadow-md overflow-hidden"
                   }`}>
                     {msg.sender === "ai" ? (
-                      <div className="prose prose-invert prose-sm max-w-none text-[12px] prose-p:leading-relaxed prose-headings:text-white prose-a:text-blue-400 marker:text-zinc-500 prose-ul:my-1.5 prose-li:my-0.5">
+                      <div className="prose prose-invert prose-sm max-w-none text-[12px] prose-p:leading-relaxed prose-headings:text-white dark:prose-headings:text-[#F5F5F5] prose-a:text-blue-400 dark:prose-a:text-[#C7CDD4] marker:text-zinc-500 dark:marker:text-[#858B93] prose-ul:my-1.5 prose-li:my-0.5">
                         <ReactMarkdown
                           components={{
                             a: ({ href, children, ...props }) => {
@@ -337,10 +337,10 @@ export default function GlobalChatbot() {
                                       e.stopPropagation();
                                       handleEntityClick(entId);
                                     }}
-                                    className="inline-flex items-center gap-1 font-semibold text-blue-400 hover:text-blue-300 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 hover:border-blue-400 px-1.5 py-0.5 rounded text-[11px] align-baseline mx-0.5 cursor-pointer transition-colors shadow-xs"
+                                    className="inline-flex items-center gap-1 font-semibold text-blue-400 dark:text-[#C7CDD4] hover:text-blue-300 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 hover:border-blue-400 px-1.5 py-0.5 rounded text-[11px] align-baseline mx-0.5 cursor-pointer transition-colors shadow-xs"
                                     title="Inspect Entity Dossier"
                                   >
-                                    <i className="fa-solid fa-fingerprint text-[9px] text-blue-400/80"></i>
+                                    <i className="fa-solid fa-fingerprint text-[9px] text-blue-400/80 dark:text-[#C7CDD4]"></i>
                                     <span>{children}</span>
                                   </button>
                                 );
@@ -358,11 +358,11 @@ export default function GlobalChatbot() {
 
 
                     {msg.evidence && msg.evidence.length > 0 && (
-                      <div className="mt-3.5 pt-3 border-t border-white/10 text-[9px] font-mono text-zinc-400 bg-zinc-950/30 -mx-4 -mb-4 px-4 pb-3">
-                        <p className="font-bold uppercase text-zinc-500 mb-1 flex items-center gap-1.5">
+                      <div className="mt-3.5 pt-3 border-t border-white/10 dark:border-[#303030] text-[9px] font-mono text-zinc-400 dark:text-[#858B93] bg-zinc-950/30 dark:bg-[#111111]/50 -mx-4 -mb-4 px-4 pb-3">
+                        <p className="font-bold uppercase text-zinc-500 dark:text-[#858B93] mb-1 flex items-center gap-1.5">
                           <i className="fa-solid fa-database text-[10px]"></i> Grounded case context:
                         </p>
-                        {msg.evidence.map((ev, i) => <div key={i} className="truncate ml-4 relative before:absolute before:content-[''] before:w-1 before:h-1 before:bg-zinc-600 before:rounded-full before:top-1.5 before:-left-3">&nbsp;{ev}</div>)}
+                        {msg.evidence.map((ev, i) => <div key={i} className="truncate ml-4 relative before:absolute before:content-[''] before:w-1 before:h-1 before:bg-zinc-600 dark:before:bg-[#454545] before:rounded-full before:top-1.5 before:-left-3">&nbsp;{ev}</div>)}
                       </div>
                     )}
                   </div>
@@ -384,7 +384,7 @@ export default function GlobalChatbot() {
                               window.location.href = act.scope === "all" ? `/global-network` : `/investigate`;
                             }
                           }}
-                          className="px-2.5 py-1.5 bg-zinc-800 hover:bg-blue-600 text-zinc-300 hover:text-white font-bold text-[9px] rounded-md transition-all cursor-pointer border border-white/5 shadow-sm hover:shadow-[0_0_10px_rgba(37,99,235,0.4)] flex items-center gap-1.5"
+                          className="px-2.5 py-1.5 bg-zinc-800 hover:bg-blue-600 dark:bg-[#1C1C1C] dark:hover:bg-[#292929] text-zinc-300 hover:text-white dark:text-[#F5F5F5] font-bold text-[9px] rounded-md transition-all cursor-pointer border border-white/5 dark:border-[#454545] shadow-sm flex items-center gap-1.5"
                         >
                           <i className="fa-solid fa-play text-[8px]"></i> {act.type.replace("_", " ")}
                         </button>
@@ -399,18 +399,18 @@ export default function GlobalChatbot() {
 
           {/* Typing state */}
           {sending && (
-            <div className="px-5 py-3 text-[10px] text-zinc-500 flex items-center gap-2.5 bg-zinc-900/40 shrink-0 border-t border-white/5">
+            <div className="px-5 py-3 text-[10px] text-zinc-500 dark:text-[#A1A1AA] flex items-center gap-2.5 bg-zinc-900/40 dark:bg-[#1C1C1C] shrink-0 border-t border-white/5 dark:border-[#303030]">
               <div className="flex gap-1">
-                <span className="h-1.5 w-1.5 bg-blue-500/80 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                <span className="h-1.5 w-1.5 bg-blue-500/80 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                <span className="h-1.5 w-1.5 bg-blue-500/80 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                <span className="h-1.5 w-1.5 bg-blue-500/80 dark:bg-[#C7CDD4] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                <span className="h-1.5 w-1.5 bg-blue-500/80 dark:bg-[#C7CDD4] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                <span className="h-1.5 w-1.5 bg-blue-500/80 dark:bg-[#C7CDD4] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
               </div>
-              <span className="font-medium font-mono text-[9px] tracking-widest uppercase text-zinc-500">Processing...</span>
+              <span className="font-medium font-mono text-[9px] tracking-widest uppercase text-zinc-500 dark:text-[#A1A1AA]">Processing...</span>
             </div>
           )}
 
           {/* Input Panel */}
-          <div className="p-4 border-t border-white/5 bg-zinc-950 shrink-0">
+          <div className="p-4 border-t border-white/5 dark:border-[#303030] bg-zinc-950 dark:bg-[#151515] shrink-0">
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -420,7 +420,7 @@ export default function GlobalChatbot() {
             >
               <div className="relative flex-1">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                  <i className="fa-solid fa-terminal text-zinc-500 text-[10px]"></i>
+                  <i className="fa-solid fa-terminal text-zinc-500 dark:text-[#858B93] text-[10px]"></i>
                 </div>
                 <input
                   type="text"
@@ -439,7 +439,7 @@ export default function GlobalChatbot() {
               <button
                 type="submit"
                 disabled={sending || !inputValue.trim() || !activeCaseId}
-                className="px-5 bg-blue-600 hover:bg-blue-500 disabled:bg-zinc-800 disabled:text-zinc-600 disabled:border-zinc-700 disabled:shadow-none border border-blue-500 shadow-[0_0_15px_rgba(37,99,235,0.2)] hover:shadow-[0_0_20px_rgba(37,99,235,0.4)] rounded-xl text-[13px] font-bold text-white transition-all duration-200 active:scale-[0.96] cursor-pointer flex items-center gap-2"
+                className="px-5 bg-blue-600 hover:bg-blue-500 dark:bg-[#C7CDD4] dark:hover:bg-[#E0E4E8] dark:text-[#101010] dark:border-[#C7CDD4] disabled:bg-zinc-800 disabled:text-zinc-600 dark:disabled:bg-[#1C1C1C] dark:disabled:text-[#62666D] disabled:border-zinc-700 disabled:shadow-none border border-blue-500 shadow-[0_0_15px_rgba(37,99,235,0.2)] dark:shadow-none hover:shadow-[0_0_20px_rgba(37,99,235,0.4)] rounded-xl text-[13px] font-bold text-white transition-all duration-200 active:scale-[0.96] cursor-pointer flex items-center gap-2"
                 aria-label="Send Message"
               >
                 Send <i className="fa-solid fa-paper-plane text-[11px] mb-0.5"></i>
@@ -449,19 +449,19 @@ export default function GlobalChatbot() {
 
           {/* Inspecting Entity Details Drawer */}
           {inspectingEntity && (
-            <div className="absolute inset-x-0 bottom-0 top-[60px] bg-zinc-950/98 backdrop-blur-xl z-30 p-5 flex flex-col border-t border-white/10 animate-in slide-in-from-bottom duration-200">
-              <div className="flex justify-between items-start pb-3 border-b border-white/10 shrink-0">
+            <div className="absolute inset-x-0 bottom-0 top-[60px] bg-zinc-950/98 dark:bg-[#1C1C1C]/98 backdrop-blur-xl z-30 p-5 flex flex-col border-t border-white/10 dark:border-[#303030] animate-in slide-in-from-bottom duration-200">
+              <div className="flex justify-between items-start pb-3 border-b border-white/10 dark:border-[#303030] shrink-0">
                 <div>
-                  <span className="px-2 py-0.5 text-[9px] font-extrabold bg-blue-500/10 border border-blue-500/30 text-blue-400 rounded-full tracking-wider uppercase">
+                  <span className="px-2 py-0.5 text-[9px] font-extrabold bg-blue-500/10 dark:bg-[#C7CDD4]/10 border border-blue-500/30 dark:border-[#C7CDD4]/30 text-blue-400 dark:text-[#C7CDD4] rounded-full tracking-wider uppercase">
                     {inspectingEntity.type || "ENTITY"}
                   </span>
-                  <h3 className="text-base font-extrabold text-white mt-1.5 flex items-center gap-2">
+                  <h3 className="text-base font-extrabold text-white dark:text-[#F5F5F5] mt-1.5 flex items-center gap-2">
                     {inspectingEntity.name}
                   </h3>
                 </div>
                 <button
                   onClick={() => setInspectingEntity(null)}
-                  className="w-7 h-7 flex items-center justify-center rounded-md text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                  className="w-7 h-7 flex items-center justify-center rounded-md text-zinc-400 hover:text-white dark:hover:text-[#F5F5F5] hover:bg-white/10 dark:hover:bg-white/5 transition-colors cursor-pointer"
                   title="Close Inspector"
                 >
                   <i className="fa-solid fa-xmark text-sm"></i>
@@ -469,8 +469,8 @@ export default function GlobalChatbot() {
               </div>
 
               {/* Risk Level gauge */}
-              <div className="my-3 p-3 rounded-xl bg-zinc-900/60 border border-white/5 flex items-center justify-between gap-3 shrink-0">
-                <span className="text-[10px] font-bold uppercase text-zinc-400">Risk Assessment</span>
+              <div className="my-3 p-3 rounded-xl bg-zinc-900/60 dark:bg-[#151515] border border-white/5 dark:border-[#303030] flex items-center justify-between gap-3 shrink-0">
+                <span className="text-[10px] font-bold uppercase text-zinc-400 dark:text-[#A1A1AA]">Risk Assessment</span>
                 <div className="flex items-center gap-2">
                   <span className={`text-[11px] font-mono font-bold ${
                     (inspectingEntity.risk_score || 0) >= 0.7 ? "text-red-400" : (inspectingEntity.risk_score || 0) >= 0.4 ? "text-amber-400" : "text-emerald-400"
@@ -487,26 +487,26 @@ export default function GlobalChatbot() {
 
               {/* Properties preview */}
               <div className="flex-1 overflow-y-auto space-y-2 pr-1 text-xs">
-                <h4 className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1">Dossier Attributes</h4>
+                <h4 className="text-[10px] font-bold text-zinc-500 dark:text-[#858B93] uppercase tracking-wider mb-1">Dossier Attributes</h4>
                 {Object.entries(inspectingEntity.properties || {}).length === 0 ? (
-                  <p className="text-zinc-500 italic text-[11px]">No additional attributes recorded in this case.</p>
+                  <p className="text-zinc-500 dark:text-[#858B93] italic text-[11px]">No additional attributes recorded in this case.</p>
                 ) : (
                   Object.entries(inspectingEntity.properties || {}).map(([k, v]) => (
-                    <div key={k} className="p-2 rounded-lg bg-zinc-900/40 border border-white/5 flex justify-between gap-2">
-                      <span className="text-zinc-400 font-mono text-[10px]">{k}</span>
-                      <span className="text-white font-semibold text-[11px] text-right break-words max-w-[60%]">{String(v)}</span>
+                    <div key={k} className="p-2 rounded-lg bg-zinc-900/40 dark:bg-[#151515] border border-white/5 dark:border-[#303030] flex justify-between gap-2">
+                      <span className="text-zinc-400 dark:text-[#A1A1AA] font-mono text-[10px]">{k}</span>
+                      <span className="text-white dark:text-[#F5F5F5] font-semibold text-[11px] text-right break-words max-w-[60%]">{String(v)}</span>
                     </div>
                   ))
                 )}
               </div>
 
               {/* Action Navigation Buttons */}
-              <div className="pt-3 border-t border-white/10 flex gap-2 shrink-0">
+              <div className="pt-3 border-t border-white/10 dark:border-[#303030] flex gap-2 shrink-0">
                 <button
                   onClick={() => {
                     window.location.href = `/entities?id=${inspectingEntity._id || inspectingEntity.id}`;
                   }}
-                  className="flex-1 py-2 px-3 bg-zinc-800 hover:bg-blue-600 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer border border-white/10 shadow-sm"
+                  className="flex-1 py-2 px-3 bg-zinc-800 hover:bg-blue-600 dark:bg-[#151515] dark:hover:bg-[#292929] text-white dark:text-[#F5F5F5] rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer border border-white/10 dark:border-[#454545] shadow-sm"
                 >
                   <i className="fa-solid fa-address-card text-[11px]"></i> View in Directory
                 </button>
@@ -514,7 +514,7 @@ export default function GlobalChatbot() {
                   onClick={() => {
                     window.location.href = `/investigate?src=${inspectingEntity._id || inspectingEntity.id}`;
                   }}
-                  className="flex-1 py-2 px-3 bg-blue-600/20 hover:bg-blue-600 text-blue-300 hover:text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer border border-blue-500/30 shadow-sm"
+                  className="flex-1 py-2 px-3 bg-blue-600/20 hover:bg-blue-600 dark:bg-[#292929] dark:hover:bg-[#C7CDD4] text-blue-300 hover:text-white dark:text-[#C7CDD4] dark:hover:text-[#101010] rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer border border-blue-500/30 dark:border-[#454545] shadow-sm"
                 >
                   <i className="fa-solid fa-diagram-project text-[11px]"></i> Trace in 3D
                 </button>

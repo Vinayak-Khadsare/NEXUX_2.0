@@ -243,30 +243,32 @@ const NetworkNode = React.memo(function NetworkNode({
       <mesh ref={meshRef}>
         {renderGeometry()}
         <meshStandardMaterial
-          color={isSelected ? (theme === "light" ? "#08A66A" : "#22D3EE") : color}
-          roughness={theme === "light" ? 0.15 : 0.25}
-          metalness={theme === "light" ? 0.05 : 0.65}
-          emissive={
+          color={
             isSelected
-              ? (theme === "light" ? "#08A66A" : "#22D3EE")
-              : hovered
-              ? (theme === "light" ? "#059669" : "#38BDF8")
+              ? (theme === "light" ? "#08A66A" : "#C7CDD4")
               : theme === "light"
               ? color
-              : highlighted
+              : "#1C1C1C"
+          }
+          roughness={theme === "light" ? 0.15 : 0.35}
+          metalness={theme === "light" ? 0.05 : 0.25}
+          emissive={
+            isSelected
+              ? (theme === "light" ? "#08A66A" : "#C7CDD4")
+              : hovered
+              ? (theme === "light" ? "#059669" : "#F5F5F5")
+              : theme === "light"
               ? color
-              : "#000000"
+              : color
           }
           emissiveIntensity={
             isSelected
-              ? (theme === "light" ? 0.6 : 0.7)
+              ? (theme === "light" ? 0.6 : 0.65)
               : hovered
               ? (theme === "light" ? 0.5 : 0.45)
               : theme === "light"
               ? 0.35
-              : highlighted
-              ? 0.35
-              : 0.05
+              : 0.28
           }
           transparent
           opacity={nodeOpacity}
@@ -285,20 +287,20 @@ const NetworkNode = React.memo(function NetworkNode({
             backgroundColor: avatar
               ? "transparent"
               : isSelected
-              ? theme === "light" ? "rgba(8,166,106,0.15)" : "rgba(8,51,68,0.85)"
-              : theme === "light" ? "#FFFFFF" : "rgba(11,19,43,0.7)",
+              ? theme === "light" ? "rgba(8,166,106,0.15)" : "#292929"
+              : theme === "light" ? "#FFFFFF" : "#1C1C1C",
             border: isSelected
-              ? `2.5px solid ${theme === "light" ? "#08A66A" : "#22D3EE"}`
+              ? `2.5px solid ${theme === "light" ? "#08A66A" : color}`
               : hovered
-              ? `2px solid ${theme === "light" ? "#059669" : "#38BDF8"}`
+              ? `2px solid ${theme === "light" ? "#059669" : "#C7CDD4"}`
               : highlighted
               ? `2px solid ${color}`
-              : `2px solid ${theme === "light" ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.12)"}`,
+              : `2px solid ${theme === "light" ? "rgba(255,255,255,0.95)" : "#454545"}`,
             boxShadow: isSelected
-              ? theme === "light" ? "0 0 14px rgba(8,166,106,0.5)" : "0 0 20px rgba(34,211,238,0.7), 0 0 6px rgba(255,255,255,0.8)"
+              ? theme === "light" ? "0 0 14px rgba(8,166,106,0.5)" : "0 4px 16px rgba(0,0,0,0.4)"
               : hovered
-              ? theme === "light" ? "0 0 8px rgba(8,166,106,0.3)" : "0 0 12px rgba(56,189,248,0.5)"
-              : theme === "light" ? "0 2px 8px rgba(0,0,0,0.22)" : undefined,
+              ? theme === "light" ? "0 0 8px rgba(8,166,106,0.3)" : "0 2px 8px rgba(0,0,0,0.3)"
+              : theme === "light" ? "0 2px 8px rgba(0,0,0,0.22)" : "0 2px 8px rgba(0,0,0,0.4)",
           }}
         >
           {avatar && avatar !== "null" && avatar !== "undefined" && !imgError ? (
@@ -310,10 +312,10 @@ const NetworkNode = React.memo(function NetworkNode({
               style={{
                 fontSize: `${size * 13}px`,
                 color: isSelected
-                  ? (theme === "light" ? "#08A66A" : "#22D3EE")
+                  ? (theme === "light" ? "#08A66A" : "#F5F5F5")
                   : theme === "light"
                   ? color
-                  : "#FFFFFF",
+                  : color,
               }}
             />
           )}
@@ -325,11 +327,11 @@ const NetworkNode = React.memo(function NetworkNode({
         <>
           <mesh ref={selectRingRef} rotation-x={Math.PI / 2}>
             <torusGeometry args={[size * 1.55, 0.055, 16, 64]} />
-            <meshBasicMaterial color={theme === "light" ? "#08A66A" : "#22D3EE"} transparent opacity={0.95} />
+            <meshBasicMaterial color={theme === "light" ? "#08A66A" : "#C7CDD4"} transparent opacity={0.95} />
           </mesh>
           <mesh ref={selectInnerRingRef} rotation-z={Math.PI / 4} rotation-x={Math.PI / 3}>
             <torusGeometry args={[size * 1.35, 0.03, 16, 64]} />
-            <meshBasicMaterial color={theme === "light" ? "#22D3EE" : "#FFFFFF"} transparent opacity={0.8} />
+            <meshBasicMaterial color={theme === "light" ? "#22D3EE" : "#858B93"} transparent opacity={0.8} />
           </mesh>
         </>
       )}
@@ -346,7 +348,7 @@ const NetworkNode = React.memo(function NetworkNode({
       {hovered && !isSelected && (
         <mesh rotation-x={Math.PI / 2}>
           <torusGeometry args={[size * 1.4, 0.035, 16, 48]} />
-          <meshBasicMaterial color={theme === "light" ? "#08A66A" : "#38BDF8"} transparent opacity={0.85} />
+          <meshBasicMaterial color={theme === "light" ? "#08A66A" : "#C7CDD4"} transparent opacity={0.85} />
         </mesh>
       )}
 
@@ -358,21 +360,21 @@ const NetworkNode = React.memo(function NetworkNode({
             fontWeight="bold"
             color={
               isSelected
-                ? (theme === "light" ? "#087A52" : "#22D3EE")
+                ? (theme === "light" ? "#087A52" : "#F5F5F5")
                 : hovered
-                ? (theme === "light" ? "#08A66A" : "#38BDF8")
+                ? (theme === "light" ? "#08A66A" : "#F5F5F5")
                 : isConnected
                 ? theme === "light"
                   ? "#0F172A"
-                  : "#FFFFFF"
+                  : "#F5F5F5"
                 : theme === "light"
                 ? "#1E293B"
-                : "#E2E8F0"
+                : "#F5F5F5"
             }
             anchorX="center"
             anchorY="middle"
-            outlineWidth={theme === "light" ? 0.055 : 0.035}
-            outlineColor={theme === "light" ? "#FFFFFF" : "#020617"}
+            outlineWidth={theme === "light" ? 0.055 : 0.045}
+            outlineColor={theme === "light" ? "#FFFFFF" : "#111111"}
           >
             {name}
           </Text>
@@ -381,11 +383,11 @@ const NetworkNode = React.memo(function NetworkNode({
               position={[0, -0.4, 0]}
               fontSize={0.24}
               fontWeight="bold"
-              color={theme === "light" ? "#08A66A" : "#38BDF8"}
+              color={theme === "light" ? "#08A66A" : "#A1A1AA"}
               anchorX="center"
               anchorY="middle"
               outlineWidth={0.02}
-              outlineColor={theme === "light" ? "#FFFFFF" : "#020617"}
+              outlineColor={theme === "light" ? "#FFFFFF" : "#111111"}
               letterSpacing={0.08}
             >
               INVESTIGATING
@@ -401,19 +403,19 @@ const NetworkNode = React.memo(function NetworkNode({
             className={`${
               theme === "light"
                 ? "bg-white/95 border-[#E2E8F0] text-[#172033] shadow-lg"
-                : "bg-[#0B132B]/95 border-[#1E293B] text-white shadow-2xl"
+                : "bg-[#1C1C1C]/95 border-[#454545] text-[#F5F5F5] shadow-2xl"
             } border rounded-xl p-3.5 min-w-[220px] text-left backdrop-blur-md font-sans animate-fade-in pointer-events-none`}
           >
-            <div className={`flex justify-between items-start mb-2 border-b ${theme === "light" ? "border-[#EEF2F6]" : "border-white/10"} pb-2`}>
+            <div className={`flex justify-between items-start mb-2 border-b ${theme === "light" ? "border-[#EEF2F6]" : "border-[#303030]"} pb-2`}>
               <div className="flex items-center gap-2">
                 {avatar && avatar !== "null" && avatar !== "undefined" && (
-                  <img src={avatar} alt="avatar" className="w-7 h-7 rounded bg-zinc-900 object-cover" />
+                  <img src={avatar} alt="avatar" className="w-7 h-7 rounded bg-[#111111] object-cover" />
                 )}
                 <div>
-                  <span className={`text-[9px] font-black uppercase tracking-widest flex items-center gap-1 ${theme === "light" ? "text-[#087A52]" : "text-cyan-400"}`}>
+                  <span className={`text-[9px] font-black uppercase tracking-widest flex items-center gap-1 ${theme === "light" ? "text-[#087A52]" : "text-[#C7CDD4]"}`}>
                     <FontAwesomeIcon icon={getIconForType(type)} /> {type}
                   </span>
-                  <h4 className={`text-xs font-bold truncate max-w-[140px] ${theme === "light" ? "text-[#172033]" : "text-white"}`}>{name}</h4>
+                  <h4 className={`text-xs font-bold truncate max-w-[140px] ${theme === "light" ? "text-[#172033]" : "text-[#F5F5F5]"}`}>{name}</h4>
                 </div>
               </div>
               <span
@@ -431,9 +433,9 @@ const NetworkNode = React.memo(function NetworkNode({
               </span>
             </div>
 
-            <div className={`flex justify-between text-[10px] ${theme === "light" ? "text-[#64748B]" : "text-slate-400"} mt-1`}>
-              <span>Connections: <strong className={theme === "light" ? "text-[#172033]" : "text-white"}>{degree}</strong></span>
-              <span className={`${theme === "light" ? "text-[#08A66A]" : "text-cyan-400"} font-mono text-[9px]`}>CLICK TO FOCUS</span>
+            <div className={`flex justify-between text-[10px] ${theme === "light" ? "text-[#64748B]" : "text-[#A1A1AA]"} mt-1`}>
+              <span>Connections: <strong className={theme === "light" ? "text-[#172033]" : "text-[#F5F5F5]"}>{degree}</strong></span>
+              <span className={`${theme === "light" ? "text-[#08A66A]" : "text-[#C7CDD4]"} font-mono text-[9px]`}>CLICK TO FOCUS</span>
             </div>
           </div>
         </Html>
@@ -545,35 +547,37 @@ const NetworkEdge = React.memo(function NetworkEdge({
     return new THREE.Vector3().copy(end).addScaledVector(dir, -1.2);
   }, [end, dir]);
 
-  // Edge Thickness & Opacity (Requirement 2 & 8)
+  // Edge Thickness & Opacity (Requirement 2 & 8 & Section 9.3)
   const isElevated = isEdgeSelected || isSelectedConnection || highlighted;
   const radius = isEdgeSelected
     ? 0.13 // Selected: 3-4px
     : hovered
-    ? 0.085 // Hovered: 2-2.5px
+    ? 0.088 // Hovered: 2-2.5px
     : isElevated
-    ? 0.07
+    ? 0.075
     : edgeConfig.style === "double"
-    ? 0.055
-    : 0.042; // Normal: 1-1.5px
+    ? 0.058
+    : 0.048; // Normal: 1-1.5px
 
   const edgeOpacity = isElevated
     ? 1.0
     : hovered || isHoveredNodeConnected
     ? 1.0
     : dimmed
-    ? 0.12 // Unrelated edge opacity around 0.10-0.20 (Requirement 8)
-    : 0.65; // Normal edges opacity 0.55-0.70 (Requirement 2)
+    ? 0.22 // Never completely disappear against dark background
+    : (theme === "light" ? 0.65 : 0.82); // Normal edges opacity 0.82 in dark mode for clear visibility
 
   const edgeColor = isEdgeSelected
-    ? (theme === "light" ? "#08A66A" : "#22D3EE")
+    ? (theme === "light" ? "#08A66A" : "#969DA5")
     : hovered
-    ? (theme === "light" ? "#087A52" : "#FFFFFF")
+    ? (theme === "light" ? "#087A52" : "#C7CDD4")
     : isElevated
     ? edgeConfig.line
     : isHoveredNodeConnected
-    ? (theme === "light" ? "#172033" : "#E2E8F0")
-    : edgeConfig.line;
+    ? (theme === "light" ? "#172033" : "#F5F5F5")
+    : theme === "light"
+    ? edgeConfig.line
+    : (edgeConfig.line || "#737B84");
 
   useEffect(() => {
     if (onClick) {
@@ -661,7 +665,7 @@ const NetworkEdge = React.memo(function NetworkEdge({
               roughness={0.3}
               metalness={0.7}
               emissive={edgeColor}
-              emissiveIntensity={isElevated ? 0.8 : hovered ? 0.6 : 0.15}
+              emissiveIntensity={isElevated ? 0.85 : hovered ? 0.65 : theme === "light" ? 0.15 : 0.35}
               transparent
               opacity={edgeOpacity}
             />
@@ -677,7 +681,7 @@ const NetworkEdge = React.memo(function NetworkEdge({
               roughness={0.3}
               metalness={0.7}
               emissive={edgeColor}
-              emissiveIntensity={isElevated ? 0.8 : hovered ? 0.6 : 0.2}
+              emissiveIntensity={isElevated ? 0.85 : hovered ? 0.65 : theme === "light" ? 0.2 : 0.35}
               transparent
               opacity={edgeOpacity}
             />
@@ -689,7 +693,7 @@ const NetworkEdge = React.memo(function NetworkEdge({
               roughness={0.3}
               metalness={0.7}
               emissive={edgeColor}
-              emissiveIntensity={isElevated ? 0.8 : hovered ? 0.6 : 0.2}
+              emissiveIntensity={isElevated ? 0.85 : hovered ? 0.65 : theme === "light" ? 0.2 : 0.35}
               transparent
               opacity={edgeOpacity}
             />
@@ -705,7 +709,7 @@ const NetworkEdge = React.memo(function NetworkEdge({
               roughness={0.3}
               metalness={0.7}
               emissive={edgeColor}
-              emissiveIntensity={isElevated ? 0.8 : hovered ? 0.6 : 0.15}
+              emissiveIntensity={isElevated ? 0.85 : hovered ? 0.65 : theme === "light" ? 0.15 : 0.35}
               transparent
               opacity={edgeOpacity}
             />
@@ -720,14 +724,14 @@ const NetworkEdge = React.memo(function NetworkEdge({
           <meshStandardMaterial
             color={edgeColor}
             emissive={edgeColor}
-            emissiveIntensity={isElevated ? 0.8 : 0.3}
+            emissiveIntensity={isElevated ? 0.85 : theme === "light" ? 0.3 : 0.45}
             transparent
             opacity={edgeOpacity}
           />
         </mesh>
       )}
 
-      {/* Relationship Label: Shown on Hover or Click (Requirement 7) */}
+      {/* Relationship Label: Shown on Hover or Click (Requirement 7 & Section 9.4) */}
       {showLabel && (
         <Billboard
           position={[midPoint.x, midPoint.y + (isEdgeSelected ? 0.45 : 0.36), midPoint.z]}
@@ -741,15 +745,15 @@ const NetworkEdge = React.memo(function NetworkEdge({
             fontWeight="bold"
             color={
               isEdgeSelected
-                ? (theme === "light" ? "#087A52" : "#22D3EE")
+                ? theme === "light" ? "#087A52" : "#F5F5F5"
                 : hovered
-                ? (theme === "light" ? "#172033" : "#FFFFFF")
-                : (theme === "light" ? "#475569" : edgeConfig.labelColor)
+                ? theme === "light" ? "#172033" : "#F5F5F5"
+                : theme === "light" ? "#475569" : "#C7CDD4"
             }
             anchorX="center"
             anchorY="middle"
             outlineWidth={0.035}
-            outlineColor={theme === "light" ? "#FFFFFF" : "#020617"}
+            outlineColor={theme === "light" ? "#FFFFFF" : "#111111"}
             letterSpacing={0.06}
           >
             {formattedLabel}
@@ -769,17 +773,17 @@ const NetworkEdge = React.memo(function NetworkEdge({
             className={`${
               theme === "light"
                 ? "bg-white/95 border-[#E2E8F0] text-[#172033] shadow-lg"
-                : "bg-[#0B132B]/95 border-[#1E293B] text-slate-200 shadow-2xl"
+                : "bg-[#1C1C1C]/95 border-[#454545] text-[#F5F5F5] shadow-[0_4px_16px_rgba(0,0,0,0.22)]"
             } border rounded-lg px-3 py-1.5 backdrop-blur-md text-[11px] font-sans flex items-center gap-2 whitespace-nowrap animate-fade-in pointer-events-none`}
           >
-            <span className={`font-semibold ${theme === "light" ? "text-[#172033]" : "text-slate-200"}`}>{sourceName}</span>
+            <span className={`font-semibold ${theme === "light" ? "text-[#172033]" : "text-[#F5F5F5]"}`}>{sourceName}</span>
             <span
               className="font-bold px-2 py-0.5 rounded text-[10px] tracking-wider uppercase"
               style={{ color: edgeConfig.line, backgroundColor: `${edgeConfig.line}22` }}
             >
               {formattedLabel}
             </span>
-            <span className={`font-semibold ${theme === "light" ? "text-[#172033]" : "text-slate-200"}`}>{targetName}</span>
+            <span className={`font-semibold ${theme === "light" ? "text-[#172033]" : "text-[#F5F5F5]"}`}>{targetName}</span>
           </div>
         </Html>
       )}
@@ -1151,25 +1155,28 @@ export default function NetworkScene({
           return "#64748B"; // Slate
       }
     }
-    // Dark theme: preserved 100% identically
-    if (riskScore >= 0.85) return "#EF4444";
+    // Dark theme: Preserve distinct entity category colours
     switch ((type || "").toUpperCase()) {
       case "PERSON":
-        return "#3B82F6";
+        return "#3B82F6"; // Royal Blue
       case "ORGANIZATION":
-        return "#10B981";
+        return "#10B981"; // Emerald Green
       case "LOCATION":
-        return "#F59E0B";
-      case "PHONE":
-        return "#8B5CF6";
-      case "ACCOUNT":
-        return "#06B6D4";
+        return "#F59E0B"; // Amber
       case "VEHICLE":
-        return "#EC4899";
+        return "#8B5CF6"; // Purple
+      case "ACCOUNT":
+        return "#06B6D4"; // Cyan
+      case "EMAIL":
+        return "#EC4899"; // Pink
       case "EVENT":
-        return "#FACC15";
+        return "#F97316"; // Coral / Orange
+      case "PHONE":
+      case "PHONE_NUMBER":
+      case "COMMUNICATION":
+        return "#6366F1"; // Indigo
       default:
-        return "#94A3B8";
+        return "#858B93"; // Secondary Silver
     }
   };
 
@@ -1192,7 +1199,7 @@ export default function NetworkScene({
   return (
     <div className="h-full w-full min-h-[280px]">
       <Canvas camera={{ position: [0, 4, 38], fov: 55, near: 0.1, far: 5000 }} gl={{ antialias: true }}>
-        {theme === "light" && <color attach="background" args={["#F8FAFC"]} />}
+        <color attach="background" args={[theme === "light" ? "#F8FAFC" : "#111111"]} />
         {theme === "light" && (
           <gridHelper args={[240, 60, "#E2E8F0", "#EEF2F6"]} position={[0, -16, 0]} />
         )}

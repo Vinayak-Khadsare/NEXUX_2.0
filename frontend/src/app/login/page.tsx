@@ -151,12 +151,12 @@ export default function Login() {
 
 
   return (
-    <div className="min-h-screen bg-[var(--app-background)] dark:text-slate-200 text-[var(--text-primary)] flex flex-col items-center justify-center p-6 relative overflow-y-auto font-sans">
+    <div className="min-h-screen bg-[var(--app-background)] dark:text-[#F5F5F5] text-[var(--text-primary)] flex flex-col items-center justify-center p-6 relative overflow-y-auto font-sans">
       
       {/* Background Ambience */}
       <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-blue-500/50 to-transparent"></div>
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-blue-600/5 rounded-full blur-[120px]"></div>
+        <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-blue-500/50 dark:via-[#C7CDD4]/20 to-transparent"></div>
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-blue-600/5 dark:bg-[#C7CDD4]/5 rounded-full blur-[120px]"></div>
         <div className="absolute bottom-0 inset-x-0 h-1/2 bg-gradient-to-t dark:from-black from-transparent to-transparent"></div>
         <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center opacity-[0.02]"></div>
       </div>
@@ -164,23 +164,23 @@ export default function Login() {
       <div className={`w-full relative z-10 flex flex-col items-center my-8 ${mode === "REGISTER" ? "max-w-2xl" : "max-w-md"}`}>
         {/* Header / Logo Area */}
         <div className="flex flex-col items-center gap-3 mb-8">
-          <div className="relative flex items-center justify-center h-16 w-16 rounded-xl bg-[var(--surface-primary)] border border-[var(--border)] shadow-xl">
-            <i className="fa-solid fa-shield-halved text-3xl text-blue-500"></i>
+          <div className="relative flex items-center justify-center h-16 w-16 rounded-xl bg-[var(--surface-primary)] border border-[var(--border-primary)] shadow-xl">
+            <i className="fa-solid fa-shield-halved text-3xl text-blue-500 dark:text-[#C7CDD4]"></i>
           </div>
           <div className="text-center">
-            <h1 className="text-3xl font-bold tracking-wider dark:text-slate-100 text-[var(--text-primary)]">NEXUS OS</h1>
-            <p className="text-xs font-mono dark:text-slate-400 text-[var(--text-muted)] uppercase tracking-[0.2em] mt-1">
+            <h1 className="text-3xl font-bold tracking-wider dark:text-[#F5F5F5] text-[var(--text-primary)]">NEXUS OS</h1>
+            <p className="text-xs font-mono dark:text-[#A1A1AA] text-[var(--text-muted)] uppercase tracking-[0.2em] mt-1">
               Secure Intelligence Platform
             </p>
           </div>
         </div>
 
         {/* Role Tabs */}
-        <div className="flex w-full mb-6 bg-[var(--surface-secondary)] rounded-lg p-1 border border-[var(--border)] max-w-md">
+        <div className="flex w-full mb-6 bg-[var(--surface-secondary)] rounded-lg p-1 border border-[var(--border-primary)] max-w-md">
           <button 
             type="button"
             onClick={() => { setActiveTab("ADMIN"); setMode("LOGIN"); setMessage(null); }}
-            className={`flex-1 py-2.5 text-xs font-bold uppercase tracking-wider rounded-md transition-all flex justify-center items-center gap-2 ${activeTab === "ADMIN" ? "bg-blue-600 text-white shadow-md" : "dark:text-slate-400 text-[var(--text-muted)] hover:dark:text-slate-200 text-[var(--text-primary)]"}`}
+            className={`flex-1 py-2.5 text-xs font-bold uppercase tracking-wider rounded-md transition-all flex justify-center items-center gap-2 ${activeTab === "ADMIN" ? "bg-blue-600 dark:bg-[#C7CDD4] text-white dark:text-[#101010] shadow-md" : "dark:text-[#A1A1AA] text-[var(--text-muted)] hover:dark:text-[#F5F5F5] text-[var(--text-primary)]"}`}
           >
             <i className="fa-solid fa-user-shield"></i>
             Admin
@@ -188,7 +188,7 @@ export default function Login() {
           <button 
             type="button"
             onClick={() => { setActiveTab("INVESTIGATOR"); setMessage(null); }}
-            className={`flex-1 py-2.5 text-xs font-bold uppercase tracking-wider rounded-md transition-all flex justify-center items-center gap-2 ${activeTab === "INVESTIGATOR" ? "bg-blue-600 text-white shadow-md" : "dark:text-slate-400 text-[var(--text-muted)] hover:dark:text-slate-200 text-[var(--text-primary)]"}`}
+            className={`flex-1 py-2.5 text-xs font-bold uppercase tracking-wider rounded-md transition-all flex justify-center items-center gap-2 ${activeTab === "INVESTIGATOR" ? "bg-blue-600 dark:bg-[#C7CDD4] text-white dark:text-[#101010] shadow-md" : "dark:text-[#A1A1AA] text-[var(--text-muted)] hover:dark:text-[#F5F5F5] text-[var(--text-primary)]"}`}
           >
             <i className="fa-solid fa-magnifying-glass"></i>
             Investigator
@@ -196,9 +196,9 @@ export default function Login() {
         </div>
 
         {/* Form Container */}
-        <div className="w-full bg-[var(--surface-primary)] border border-[var(--border)] p-8 rounded-2xl shadow-2xl relative">
+        <div className="w-full bg-[var(--surface-primary)] border border-[var(--border-primary)] p-8 rounded-2xl shadow-2xl relative">
           
-          <h2 className="text-lg font-semibold dark:text-slate-100 text-[var(--text-primary)] mb-2 text-center">
+          <h2 className="text-lg font-semibold dark:text-[#F5F5F5] text-[var(--text-primary)] mb-2 text-center">
             {activeTab === "ADMIN" 
               ? "Administrator Login"
               : (mode === "LOGIN" ? "Investigator Login" : "Investigator Registration")}
@@ -208,7 +208,7 @@ export default function Login() {
             <button 
               type="button"
               onClick={() => { setMode("LOGIN"); setMessage(null); }}
-              className={`${mode === "LOGIN" ? "text-blue-400 border-b-2 border-blue-400 pb-1" : "dark:text-slate-500 text-[var(--text-muted)] hover:dark:text-slate-300 text-[var(--text-secondary)] pb-1"}`}
+              className={`${mode === "LOGIN" ? "text-blue-400 dark:text-[#C7CDD4] border-b-2 border-blue-400 dark:border-[#C7CDD4] pb-1" : "dark:text-[#858B93] text-[var(--text-muted)] hover:dark:text-[#F5F5F5] text-[var(--text-secondary)] pb-1"}`}
             >
               Sign In
             </button>
@@ -216,7 +216,7 @@ export default function Login() {
               <button 
                 type="button"
                 onClick={() => { setMode("REGISTER"); setMessage(null); }}
-                className={`${mode === "REGISTER" ? "text-blue-400 border-b-2 border-blue-400 pb-1" : "dark:text-slate-500 text-[var(--text-muted)] hover:dark:text-slate-300 text-[var(--text-secondary)] pb-1"}`}
+                className={`${mode === "REGISTER" ? "text-blue-400 dark:text-[#C7CDD4] border-b-2 border-blue-400 dark:border-[#C7CDD4] pb-1" : "dark:text-[#858B93] text-[var(--text-muted)] hover:dark:text-[#F5F5F5] text-[var(--text-secondary)] pb-1"}`}
               >
                 Request Access
               </button>
@@ -240,70 +240,70 @@ export default function Login() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Personal Information */}
                   <div className="space-y-4">
-                    <h3 className="text-xs font-bold dark:text-slate-300 text-[var(--text-secondary)] border-b border-[var(--border)] pb-2 uppercase tracking-wider flex items-center gap-2">
+                    <h3 className="text-xs font-bold dark:text-[#D4D4D8] text-[var(--text-secondary)] border-b border-[var(--border)] pb-2 uppercase tracking-wider flex items-center gap-2">
                       <i className="fa-solid fa-id-card text-blue-500"></i> Personal Information
                     </h3>
                     
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-bold dark:text-slate-400 text-[var(--text-muted)] uppercase tracking-widest pl-1">Full Name</label>
+                      <label className="text-[10px] font-bold dark:text-[#A1A1AA] text-[var(--text-muted)] uppercase tracking-widest pl-1">Full Name</label>
                       <div className="relative">
-                        <i className="fa-solid fa-user absolute left-4 top-1/2 -translate-y-1/2 dark:text-slate-500 text-[var(--text-muted)] text-xs"></i>
-                        <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} className="w-full p-2.5 pl-10 rounded-lg bg-[var(--app-background)] border border-[var(--border)] focus:outline-none focus:border-blue-500 text-xs dark:text-slate-200 text-[var(--text-primary)] placeholder-slate-600 transition-all" placeholder="Full Name" required />
+                        <i className="fa-solid fa-user absolute left-4 top-1/2 -translate-y-1/2 dark:text-[#858B93] text-[var(--text-muted)] text-xs"></i>
+                        <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} className="w-full p-2.5 pl-10 rounded-lg bg-[var(--app-background)] border border-[var(--border)] focus:outline-none focus:border-blue-500 text-xs dark:text-[#F5F5F5] text-[var(--text-primary)] placeholder-[var(--text-muted)] transition-all" placeholder="Full Name" required />
                       </div>
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-bold dark:text-slate-400 text-[var(--text-muted)] uppercase tracking-widest pl-1">Email Address</label>
+                      <label className="text-[10px] font-bold dark:text-[#A1A1AA] text-[var(--text-muted)] uppercase tracking-widest pl-1">Email Address</label>
                       <div className="relative">
-                        <i className="fa-solid fa-envelope absolute left-4 top-1/2 -translate-y-1/2 dark:text-slate-500 text-[var(--text-muted)] text-xs"></i>
-                        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full p-2.5 pl-10 rounded-lg bg-[var(--app-background)] border border-[var(--border)] focus:outline-none focus:border-blue-500 text-xs dark:text-slate-200 text-[var(--text-primary)] placeholder-slate-600 transition-all" placeholder="Email Address" required />
+                        <i className="fa-solid fa-envelope absolute left-4 top-1/2 -translate-y-1/2 dark:text-[#858B93] text-[var(--text-muted)] text-xs"></i>
+                        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full p-2.5 pl-10 rounded-lg bg-[var(--app-background)] border border-[var(--border)] focus:outline-none focus:border-blue-500 text-xs dark:text-[#F5F5F5] text-[var(--text-primary)] placeholder-[var(--text-muted)] transition-all" placeholder="Email Address" required />
                       </div>
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-bold dark:text-slate-400 text-[var(--text-muted)] uppercase tracking-widest pl-1">Phone Number</label>
+                      <label className="text-[10px] font-bold dark:text-[#A1A1AA] text-[var(--text-muted)] uppercase tracking-widest pl-1">Phone Number</label>
                       <div className="relative">
-                        <i className="fa-solid fa-phone absolute left-4 top-1/2 -translate-y-1/2 dark:text-slate-500 text-[var(--text-muted)] text-xs"></i>
-                        <input type="tel" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} className="w-full p-2.5 pl-10 rounded-lg bg-[var(--app-background)] border border-[var(--border)] focus:outline-none focus:border-blue-500 text-xs dark:text-slate-200 text-[var(--text-primary)] placeholder-slate-600 transition-all" placeholder="Phone Number" required />
+                        <i className="fa-solid fa-phone absolute left-4 top-1/2 -translate-y-1/2 dark:text-[#858B93] text-[var(--text-muted)] text-xs"></i>
+                        <input type="tel" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} className="w-full p-2.5 pl-10 rounded-lg bg-[var(--app-background)] border border-[var(--border)] focus:outline-none focus:border-blue-500 text-xs dark:text-[#F5F5F5] text-[var(--text-primary)] placeholder-[var(--text-muted)] transition-all" placeholder="Phone Number" required />
                       </div>
                     </div>
                   </div>
 
                   {/* Professional Information */}
                   <div className="space-y-4">
-                    <h3 className="text-xs font-bold dark:text-slate-300 text-[var(--text-secondary)] border-b border-[var(--border)] pb-2 uppercase tracking-wider flex items-center gap-2">
+                    <h3 className="text-xs font-bold dark:text-[#D4D4D8] text-[var(--text-secondary)] border-b border-[var(--border)] pb-2 uppercase tracking-wider flex items-center gap-2">
                       <i className="fa-solid fa-building-shield text-blue-500"></i> Professional Info
                     </h3>
                     
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-bold dark:text-slate-400 text-[var(--text-muted)] uppercase tracking-widest pl-1">Organization / Department</label>
+                      <label className="text-[10px] font-bold dark:text-[#A1A1AA] text-[var(--text-muted)] uppercase tracking-widest pl-1">Organization / Department</label>
                       <div className="relative">
-                        <i className="fa-solid fa-sitemap absolute left-4 top-1/2 -translate-y-1/2 dark:text-slate-500 text-[var(--text-muted)] text-xs"></i>
-                        <input type="text" value={department} onChange={(e) => setDepartment(e.target.value)} className="w-full p-2.5 pl-10 rounded-lg bg-[var(--app-background)] border border-[var(--border)] focus:outline-none focus:border-blue-500 text-xs dark:text-slate-200 text-[var(--text-primary)] placeholder-slate-600 transition-all" placeholder="Organization / Department" required />
+                        <i className="fa-solid fa-sitemap absolute left-4 top-1/2 -translate-y-1/2 dark:text-[#858B93] text-[var(--text-muted)] text-xs"></i>
+                        <input type="text" value={department} onChange={(e) => setDepartment(e.target.value)} className="w-full p-2.5 pl-10 rounded-lg bg-[var(--app-background)] border border-[var(--border)] focus:outline-none focus:border-blue-500 text-xs dark:text-[#F5F5F5] text-[var(--text-primary)] placeholder-[var(--text-muted)] transition-all" placeholder="Organization / Department" required />
                       </div>
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-bold dark:text-slate-400 text-[var(--text-muted)] uppercase tracking-widest pl-1">Investigator / Employee ID</label>
+                      <label className="text-[10px] font-bold dark:text-[#A1A1AA] text-[var(--text-muted)] uppercase tracking-widest pl-1">Investigator / Employee ID</label>
                       <div className="relative">
-                        <i className="fa-solid fa-id-badge absolute left-4 top-1/2 -translate-y-1/2 dark:text-slate-500 text-[var(--text-muted)] text-xs"></i>
-                        <input type="text" value={badgeNumber} onChange={(e) => setBadgeNumber(e.target.value)} className="w-full p-2.5 pl-10 rounded-lg bg-[var(--app-background)] border border-[var(--border)] focus:outline-none focus:border-blue-500 text-xs dark:text-slate-200 text-[var(--text-primary)] placeholder-slate-600 transition-all" placeholder="Investigator / Employee ID" required />
+                        <i className="fa-solid fa-id-badge absolute left-4 top-1/2 -translate-y-1/2 dark:text-[#858B93] text-[var(--text-muted)] text-xs"></i>
+                        <input type="text" value={badgeNumber} onChange={(e) => setBadgeNumber(e.target.value)} className="w-full p-2.5 pl-10 rounded-lg bg-[var(--app-background)] border border-[var(--border)] focus:outline-none focus:border-blue-500 text-xs dark:text-[#F5F5F5] text-[var(--text-primary)] placeholder-[var(--text-muted)] transition-all" placeholder="Investigator / Employee ID" required />
                       </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-[10px] font-bold dark:text-slate-400 text-[var(--text-muted)] uppercase tracking-widest pl-1">Role</label>
+                        <label className="text-[10px] font-bold dark:text-[#A1A1AA] text-[var(--text-muted)] uppercase tracking-widest pl-1">Role</label>
                         <div className="relative">
-                          <i className="fa-solid fa-user-tag absolute left-4 top-1/2 -translate-y-1/2 dark:text-slate-500 text-[var(--text-muted)] text-xs"></i>
-                          <input type="text" value={designation} onChange={(e) => setDesignation(e.target.value)} className="w-full p-2.5 pl-10 rounded-lg bg-[var(--app-background)] border border-[var(--border)] focus:outline-none focus:border-blue-500 text-xs dark:text-slate-200 text-[var(--text-primary)] placeholder-slate-600 transition-all" placeholder="Role" required />
+                          <i className="fa-solid fa-user-tag absolute left-4 top-1/2 -translate-y-1/2 dark:text-[#858B93] text-[var(--text-muted)] text-xs"></i>
+                          <input type="text" value={designation} onChange={(e) => setDesignation(e.target.value)} className="w-full p-2.5 pl-10 rounded-lg bg-[var(--app-background)] border border-[var(--border)] focus:outline-none focus:border-blue-500 text-xs dark:text-[#F5F5F5] text-[var(--text-primary)] placeholder-[var(--text-muted)] transition-all" placeholder="Role" required />
                         </div>
                       </div>
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-[10px] font-bold dark:text-slate-400 text-[var(--text-muted)] uppercase tracking-widest pl-1">Region</label>
+                        <label className="text-[10px] font-bold dark:text-[#A1A1AA] text-[var(--text-muted)] uppercase tracking-widest pl-1">Region</label>
                         <div className="relative">
-                          <i className="fa-solid fa-globe absolute left-4 top-1/2 -translate-y-1/2 dark:text-slate-500 text-[var(--text-muted)] text-xs"></i>
-                          <input type="text" value={country} onChange={(e) => setCountry(e.target.value)} className="w-full p-2.5 pl-10 rounded-lg bg-[var(--app-background)] border border-[var(--border)] focus:outline-none focus:border-blue-500 text-xs dark:text-slate-200 text-[var(--text-primary)] placeholder-slate-600 transition-all" placeholder="Region" />
+                          <i className="fa-solid fa-globe absolute left-4 top-1/2 -translate-y-1/2 dark:text-[#858B93] text-[var(--text-muted)] text-xs"></i>
+                          <input type="text" value={country} onChange={(e) => setCountry(e.target.value)} className="w-full p-2.5 pl-10 rounded-lg bg-[var(--app-background)] border border-[var(--border)] focus:outline-none focus:border-blue-500 text-xs dark:text-[#F5F5F5] text-[var(--text-primary)] placeholder-[var(--text-muted)] transition-all" placeholder="Region" />
                         </div>
                       </div>
                     </div>
@@ -312,17 +312,17 @@ export default function Login() {
 
                 {/* Account Security */}
                 <div className="space-y-4 pt-2">
-                  <h3 className="text-xs font-bold dark:text-slate-300 text-[var(--text-secondary)] border-b border-[var(--border)] pb-2 uppercase tracking-wider flex items-center gap-2">
+                  <h3 className="text-xs font-bold dark:text-[#D4D4D8] text-[var(--text-secondary)] border-b border-[var(--border)] pb-2 uppercase tracking-wider flex items-center gap-2">
                     <i className="fa-solid fa-lock text-blue-500"></i> Account Security
                   </h3>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-bold dark:text-slate-400 text-[var(--text-muted)] uppercase tracking-widest pl-1">Password</label>
+                      <label className="text-[10px] font-bold dark:text-[#A1A1AA] text-[var(--text-muted)] uppercase tracking-widest pl-1">Password</label>
                       <div className="relative">
-                        <i className="fa-solid fa-key absolute left-4 top-1/2 -translate-y-1/2 dark:text-slate-500 text-[var(--text-muted)] text-xs"></i>
-                        <input type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} className="w-full p-2.5 pl-10 pr-10 rounded-lg bg-[var(--app-background)] border border-[var(--border)] focus:outline-none focus:border-blue-500 text-xs dark:text-slate-200 text-[var(--text-primary)] placeholder-slate-600 transition-all font-mono tracking-widest" placeholder="••••••••" required />
-                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 dark:text-slate-500 text-[var(--text-muted)] hover:dark:text-slate-300 text-[var(--text-secondary)] transition-colors">
+                        <i className="fa-solid fa-key absolute left-4 top-1/2 -translate-y-1/2 dark:text-[#858B93] text-[var(--text-muted)] text-xs"></i>
+                        <input type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} className="w-full p-2.5 pl-10 pr-10 rounded-lg bg-[var(--app-background)] border border-[var(--border)] focus:outline-none focus:border-blue-500 text-xs dark:text-[#F5F5F5] text-[var(--text-primary)] placeholder-[var(--text-muted)] transition-all font-mono tracking-widest" placeholder="••••••••" required />
+                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 dark:text-[#858B93] text-[var(--text-muted)] hover:dark:text-[#D4D4D8] text-[var(--text-secondary)] transition-colors">
                           <i className={`fa-solid ${showPassword ? "fa-eye-slash" : "fa-eye"}`}></i>
                         </button>
                       </div>
@@ -335,7 +335,7 @@ export default function Login() {
                               <div key={level} className={`flex-1 rounded-full ${strength >= level ? (strength === 5 ? "bg-emerald-500" : strength >= 3 ? "bg-blue-500" : "bg-red-500") : "bg-[var(--border)]"}`}></div>
                             ))}
                           </div>
-                          <div className="text-[9px] font-mono dark:text-slate-500 text-[var(--text-muted)] space-y-1">
+                          <div className="text-[9px] font-mono dark:text-[#858B93] text-[var(--text-muted)] space-y-1">
                             <p className={password.length >= 8 ? "text-emerald-400" : ""}>
                               <i className={`fa-solid mr-1 ${password.length >= 8 ? "fa-check" : "fa-xmark"}`}></i> 8+ characters
                             </p>
@@ -357,11 +357,11 @@ export default function Login() {
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-bold dark:text-slate-400 text-[var(--text-muted)] uppercase tracking-widest pl-1">Confirm Password</label>
+                      <label className="text-[10px] font-bold dark:text-[#A1A1AA] text-[var(--text-muted)] uppercase tracking-widest pl-1">Confirm Password</label>
                       <div className="relative">
-                        <i className="fa-solid fa-lock absolute left-4 top-1/2 -translate-y-1/2 dark:text-slate-500 text-[var(--text-muted)] text-xs"></i>
-                        <input type={showConfirmPassword ? "text" : "password"} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="w-full p-2.5 pl-10 pr-10 rounded-lg bg-[var(--app-background)] border border-[var(--border)] focus:outline-none focus:border-blue-500 text-xs dark:text-slate-200 text-[var(--text-primary)] placeholder-slate-600 transition-all font-mono tracking-widest" placeholder="••••••••" required />
-                        <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 dark:text-slate-500 text-[var(--text-muted)] hover:dark:text-slate-300 text-[var(--text-secondary)] transition-colors">
+                        <i className="fa-solid fa-lock absolute left-4 top-1/2 -translate-y-1/2 dark:text-[#858B93] text-[var(--text-muted)] text-xs"></i>
+                        <input type={showConfirmPassword ? "text" : "password"} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="w-full p-2.5 pl-10 pr-10 rounded-lg bg-[var(--app-background)] border border-[var(--border)] focus:outline-none focus:border-blue-500 text-xs dark:text-[#F5F5F5] text-[var(--text-primary)] placeholder-[var(--text-muted)] transition-all font-mono tracking-widest" placeholder="••••••••" required />
+                        <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 dark:text-[#858B93] text-[var(--text-muted)] hover:dark:text-[#D4D4D8] text-[var(--text-secondary)] transition-colors">
                           <i className={`fa-solid ${showConfirmPassword ? "fa-eye-slash" : "fa-eye"}`}></i>
                         </button>
                       </div>
@@ -379,37 +379,37 @@ export default function Login() {
             ) : (
               <>
                 <div className="flex flex-col gap-2">
-                  <label className="text-[10px] font-bold dark:text-slate-400 text-[var(--text-muted)] uppercase tracking-widest pl-1">Email Address</label>
+                  <label className="text-[10px] font-bold dark:text-[#A1A1AA] text-[var(--text-muted)] uppercase tracking-widest pl-1">Email Address</label>
                   <div className="relative">
-                    <i className="fa-solid fa-envelope absolute left-4 top-1/2 -translate-y-1/2 dark:text-slate-500 text-[var(--text-muted)] text-sm"></i>
+                    <i className="fa-solid fa-envelope absolute left-4 top-1/2 -translate-y-1/2 dark:text-[#858B93] text-[var(--text-muted)] text-sm"></i>
                     <input 
                       type="email"
                       placeholder="Email Address" 
                       value={email} 
                       onChange={(e) => setEmail(e.target.value)}
-                      className="w-full p-3.5 pl-11 rounded-lg bg-[var(--app-background)] border border-[var(--border)] focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm dark:text-slate-200 text-[var(--text-primary)] placeholder-slate-600 transition-all" 
+                      className="w-full p-3.5 pl-11 rounded-lg bg-[var(--app-background)] border border-[var(--border)] focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm dark:text-[#F5F5F5] text-[var(--text-primary)] placeholder-[var(--text-muted)] transition-all" 
                       required 
                     />
                   </div>
                 </div>
 
                 <div className="flex flex-col gap-2">
-                  <label className="text-[10px] font-bold dark:text-slate-400 text-[var(--text-muted)] uppercase tracking-widest pl-1">Passphrase</label>
+                  <label className="text-[10px] font-bold dark:text-[#A1A1AA] text-[var(--text-muted)] uppercase tracking-widest pl-1">Passphrase</label>
                   <div className="relative">
-                    <i className="fa-solid fa-lock absolute left-4 top-1/2 -translate-y-1/2 dark:text-slate-500 text-[var(--text-muted)] text-sm"></i>
+                    <i className="fa-solid fa-lock absolute left-4 top-1/2 -translate-y-1/2 dark:text-[#858B93] text-[var(--text-muted)] text-sm"></i>
                     <input 
                       type="password" 
                       placeholder="••••••••••••" 
                       value={password} 
                       onChange={(e) => setPassword(e.target.value)}
-                      className="w-full p-3.5 pl-11 rounded-lg bg-[var(--app-background)] border border-[var(--border)] focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm dark:text-slate-200 text-[var(--text-primary)] placeholder-slate-600 transition-all font-mono tracking-widest" 
+                      className="w-full p-3.5 pl-11 rounded-lg bg-[var(--app-background)] border border-[var(--border)] focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm dark:text-[#F5F5F5] text-[var(--text-primary)] placeholder-[var(--text-muted)] transition-all font-mono tracking-widest" 
                       required 
                     />
                   </div>
                 </div>
 
                 <div className="flex justify-end pt-1">
-                  <button type="button" onClick={() => router.push("/forgot-password")} className="text-[10px] text-blue-400 hover:text-blue-300 transition-colors uppercase font-bold tracking-wider relative z-10 cursor-pointer">
+                  <button type="button" onClick={() => router.push("/forgot-password")} className="text-[10px] text-blue-400 hover:text-blue-300 dark:text-[#C7CDD4] dark:hover:text-[#F5F5F5] transition-colors uppercase font-bold tracking-wider relative z-10 cursor-pointer">
                     Forgot Password?
                   </button>
                 </div>
@@ -419,7 +419,7 @@ export default function Login() {
             <button 
               type="submit" 
               disabled={loading || (mode === "REGISTER" && (strength < 5 || password !== confirmPassword))}
-              className="mt-4 p-4 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-900/40 disabled:text-blue-200/40 disabled:cursor-not-allowed rounded-lg font-bold shadow-lg shadow-blue-900/20 active:scale-[0.98] transition-all duration-200 w-full flex items-center justify-center gap-2 text-white text-sm uppercase tracking-wider"
+              className="mt-4 p-4 bg-blue-600 hover:bg-blue-500 dark:bg-[#C7CDD4] dark:hover:bg-[#E0E4E8] dark:text-[#101010] dark:shadow-none disabled:bg-blue-900/40 disabled:text-blue-200/40 dark:disabled:bg-[#1C1C1C] dark:disabled:text-[#62666D] disabled:cursor-not-allowed rounded-lg font-bold shadow-lg shadow-blue-900/20 active:scale-[0.98] transition-all duration-200 w-full flex items-center justify-center gap-2 text-white text-sm uppercase tracking-wider"
             >
               {loading ? (
                 <>
@@ -438,7 +438,7 @@ export default function Login() {
         
         {/* Footer Security Notice */}
         <div className="mt-8 flex flex-col items-center gap-2">
-          <p className="text-center text-[10px] font-mono dark:text-slate-500 text-[var(--text-muted)] uppercase tracking-widest flex items-center gap-2">
+          <p className="text-center text-[10px] font-mono dark:text-[#858B93] text-[var(--text-muted)] uppercase tracking-widest flex items-center gap-2">
             <i className="fa-solid fa-shield-halved"></i> 256-BIT ENCRYPTED CHANNEL
           </p>
         </div>

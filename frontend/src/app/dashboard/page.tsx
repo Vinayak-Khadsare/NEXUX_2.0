@@ -16,7 +16,7 @@ import {
 const NetworkScene = dynamic(() => import("../../three/NetworkScene"), { ssr: false });
 
 export default function Dashboard() {
-  const { cases, activeCaseId, activeCase } = useCase();
+  const { cases, activeCaseId, activeCase, loadingCases } = useCase();
   
   const [graphData, setGraphData] = useState<any>({ nodes: [], links: [] });
   const [loading, setLoading] = useState(true);
@@ -33,14 +33,23 @@ export default function Dashboard() {
   };
 
   const fetchCommandCenterData = useCallback(async () => {
-    if (activeCaseId === null && cases.length > 0) {
-      // Wait for case selection if cases exist
+    if (loadingCases) {
       return;
     }
 
+    if (!activeCaseId) {
+      setGraphData({ nodes: [], links: [] });
+      setAlerts([]);
+      setHighRiskEntities([]);
+      setLoading(false);
+      return;
+    }
 
     const token = localStorage.getItem("token");
-    if (!token) return;
+    if (!token) {
+      setLoading(false);
+      return;
+    }
     
     // Clear graph to prevent stale rendering during case switch
     setGraphData({ nodes: [], links: [] });
@@ -49,16 +58,10 @@ export default function Dashboard() {
     try {
       setLoading(true);
       
-      // Fetch Network and Alerts in parallel
-      const networkEndpoint = activeCaseId 
-        ? `/api/network/${activeCaseId}` 
-        : `/api/network/global`;
-        
+      // Fetch Network and Alerts strictly for the active case
       const [netRes, altRes] = await Promise.all([
-        fetch(getApiUrl(networkEndpoint), { headers: { Authorization: `Bearer ${token}` } }),
-        activeCaseId 
-          ? fetch(getApiUrl(`/api/alerts/?case_id=${activeCaseId}`), { headers: { Authorization: `Bearer ${token}` } })
-          : Promise.resolve(null)
+        fetch(getApiUrl(`/api/network/${activeCaseId}`), { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(getApiUrl(`/api/alerts/?case_id=${activeCaseId}`), { headers: { Authorization: `Bearer ${token}` } })
       ]);
 
       if (netRes && netRes.ok) {
@@ -81,7 +84,7 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
-  }, [activeCaseId]);
+  }, [activeCaseId, loadingCases]);
 
   useEffect(() => {
     fetchCommandCenterData();
@@ -236,7 +239,7 @@ export default function Dashboard() {
             <div className="text-right">
               <p className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider mb-0.5">Active Case Status</p>
               <p className="font-mono text-sm font-bold text-[var(--text-primary)]">
-                {activeCase ? `${activeCase.name} [${activeCase.status}]` : "GLOBAL DB OVERVIEW"}
+                {activeCase ? `${activeCase.name} [${activeCase.status}]` : "NO ACTIVE CASE"}
               </p>
             </div>
           </div>

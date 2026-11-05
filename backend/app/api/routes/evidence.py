@@ -82,8 +82,8 @@ async def process_evidence_text_background(db, file_path: str, filename: str, ca
                     date_key = next((col_map[k] for k in ["date", "time", "timestamp", "datetime", "date_time", "event_time", "date_occurred", "time_stamp"] if k in col_map), None)
                     event_key = next((col_map[k] for k in ["event", "activity", "incident", "description", "action", "message", "event_description", "summary", "log"] if k in col_map), None)
 
-                    id_key = next((col_map[k] for k in ["entity_id", "id", "identifier", "entity", "code", "node_id"] if k in col_map), None)
-                    name_key = next((col_map[k] for k in ["name", "name_identifier", "entity_name", "title", "label", "full_name", "subject"] if k in col_map), None)
+                    id_key = next((col_map[k] for k in ["entity_id", "location_id", "id", "identifier", "entity", "code", "node_id"] if k in col_map), None)
+                    name_key = next((col_map[k] for k in ["name", "location_name", "name_identifier", "entity_name", "title", "label", "full_name", "subject"] if k in col_map), None)
                     type_key = next((col_map[k] for k in ["type", "category", "classification", "entity_type", "kind", "role"] if k in col_map), None)
                     risk_key = next((col_map[k] for k in ["risk", "risk_score", "threat_score", "threat_level", "risk_level", "priority"] if k in col_map), None)
                     desc_key = next((col_map[k] for k in ["description", "role_description", "desc", "role", "summary", "notes", "details", "involvement", "activity", "bio", "about", "context", "remarks"] if k in col_map), None)
@@ -94,8 +94,14 @@ async def process_evidence_text_background(db, file_path: str, filename: str, ca
                         (name_key and type_key) or
                         (id_key and type_key) or
                         (id_key and name_key) or
-                        ("entit" in filename.lower())
+                        ("entit" in filename.lower()) or
+                        ("locat" in filename.lower()) or
+                        (id_key and "location" in id_key)
                     ))
+
+                    alert_id_key = next((col_map[k] for k in ["alert_id", "alert", "alert_code"] if k in col_map), None)
+                    alert_type_key = next((col_map[k] for k in ["alert_type", "severity", "threat_level"] if k in col_map), None)
+                    is_alert_schema = bool(not is_rel_schema and not is_timeline_schema and not is_entity_schema and (alert_id_key or ("alert" in filename.lower() and alert_type_key)))
 
                     from app.services.relationship_resolver import find_entity, infer_type_from_id
 
@@ -210,7 +216,9 @@ async def process_evidence_text_background(db, file_path: str, filename: str, ca
                                 val_id = str(record.get(id_key)).strip() if id_key and record.get(id_key) and str(record.get(id_key)).lower() != "nan" else None
 
                                 val_type = "PERSON"
-                                if type_key and record.get(type_key) and str(record.get(type_key)).lower() != "nan":
+                                if "locat" in filename.lower() or (id_key and "location" in str(id_key).lower()) or "latitude" in col_map or (val_id and str(val_id).upper().startswith("L")):
+                                    val_type = "LOCATION"
+                                elif type_key and record.get(type_key) and str(record.get(type_key)).lower() != "nan":
                                     val_type = str(record.get(type_key)).strip().upper()
                                 elif val_id:
                                     inferred = infer_type_from_id(val_id)
@@ -223,6 +231,13 @@ async def process_evidence_text_background(db, file_path: str, filename: str, ca
                                 if val_id:
                                     properties["entity_id"] = val_id
                                     properties["identifier"] = val_id
+
+                                if "latitude" in record and "longitude" in record:
+                                    try:
+                                        properties["latitude"] = float(record["latitude"])
+                                        properties["longitude"] = float(record["longitude"])
+                                    except Exception:
+                                        pass
 
                                 val_desc = ""
                                 if desc_key and record.get(desc_key) and str(record.get(desc_key)).lower() != "nan":
@@ -256,8 +271,10 @@ async def process_evidence_text_background(db, file_path: str, filename: str, ca
                                     or_queries.append({"name": {"$regex": f"^{re.escape(val_id)}$", "$options": "i"}})
 
                                 existing = await db["entities"].find_one({
-                                    "$or": [{"case_id": case_id}, {"caseId": case_id}],
-                                    "$or": or_queries
+                                    "$and": [
+                                        {"$or": [{"case_id": case_id}, {"caseId": case_id}]},
+                                        {"$or": or_queries}
+                                    ]
                                 })
                                 if not existing:
                                     await db["entities"].insert_one(processed_ent)
@@ -279,6 +296,35 @@ async def process_evidence_text_background(db, file_path: str, filename: str, ca
                                 print(f"Skipping invalid entity row: {row_e}")
                                 continue
 
+                    elif is_alert_schema:
+                        is_structured = True
+                        for record in parsed_data:
+                            try:
+                                a_ent = str(record.get("entity_id", record.get("entity", ""))).strip()
+                                a_type = str(record.get("alert_type", record.get("type", "ANOMALY"))).strip().upper()
+                                a_sev = str(record.get("severity", "MEDIUM")).strip().upper()
+                                a_msg = str(record.get("message", record.get("description", "System Alert"))).strip()
+                                a_status = str(record.get("status", "ACTIVE")).strip().upper()
+                                if a_status == "NEW":
+                                    a_status = "ACTIVE"
+                                
+                                alert_doc = {
+                                    "case_id": case_id,
+                                    "caseId": case_id,
+                                    "entity_id": a_ent,
+                                    "type": a_type,
+                                    "severity": a_sev,
+                                    "message": a_msg,
+                                    "status": a_status,
+                                    "properties": {k: v for k, v in record.items() if str(v).lower() != "nan"},
+                                    "created_by": current_user_email,
+                                    "created_at": datetime.utcnow()
+                                }
+                                await db["alerts"].insert_one(alert_doc)
+                            except Exception as alt_err:
+                                print(f"Skipping invalid alert row: {alt_err}")
+                                continue
+
                     if is_structured:
                         structured_text_preview = str(parsed_data)[:5000]
             except Exception as schema_e:
@@ -298,8 +344,11 @@ async def process_evidence_text_background(db, file_path: str, filename: str, ca
                 status = "SUCCESS" if extracted_text and not extracted_text.startswith("Error") else "FAILED"
 
         if status == "SUCCESS":
-            import asyncio
-            await asyncio.to_thread(index_document, case_id, evidence_id, extracted_text)
+            try:
+                import asyncio
+                await asyncio.to_thread(index_document, case_id, evidence_id, extracted_text)
+            except Exception as rag_err:
+                print(f"[RAG_WARN] Vector index document non-fatal error: {rag_err}")
             
             if not is_structured:
                 try:
@@ -518,3 +567,35 @@ async def get_evidence(evidence_id: str, db=Depends(get_database), current_user=
         
     await verify_case_access(str(ev.get("case_id")), db, current_user)
     return ev
+
+@router.post("/case/{case_id}/reprocess")
+async def reprocess_case_evidence(
+    case_id: str,
+    background_tasks: BackgroundTasks,
+    db=Depends(get_database),
+    current_user=Depends(get_current_user)
+):
+    await verify_case_access(case_id, db, current_user)
+    ev_list = await db["evidence"].find({"$or": [{"case_id": case_id}, {"caseId": case_id}]}).to_list(length=100)
+    # Process structured files first (entities/locations then relationships/timeline)
+    def priority(ev):
+        t = (ev.get("title") or "").lower()
+        if "entit" in t or "locat" in t:
+            return 0
+        if "relat" in t or "edge" in t or "link" in t:
+            return 1
+        if "time" in t:
+            return 2
+        return 3
+
+    sorted_ev = sorted(ev_list, key=priority)
+    for ev in sorted_ev:
+        file_path = ev.get("file_path", "")
+        filename = ev.get("title", "")
+        ev_id = str(ev["_id"])
+        background_tasks.add_task(
+            process_evidence_text_background,
+            db, file_path, filename, case_id, ev_id, current_user.get("email", "system")
+        )
+    return {"message": f"Reprocessing scheduled for {len(sorted_ev)} evidence files in case {case_id}"}
+

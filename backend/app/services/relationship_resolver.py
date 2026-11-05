@@ -202,11 +202,13 @@ async def resolve_case_relationships(db, case_id: str) -> int:
 
     # B. Check evidence collection for relationship CSV/JSON files
     ev_cursor = db["evidence"].find({
-        "$or": [{"case_id": case_id}, {"caseId": case_id}],
-        "$or": [
-            {"title": {"$regex": "relat|link|edge", "$options": "i"}},
-            {"file_path": {"$regex": r"\.(csv|json)$", "$options": "i"}},
-            {"file_type": {"$in": ["text/csv", "application/json"]}}
+        "$and": [
+            {"$or": [{"case_id": case_id}, {"caseId": case_id}]},
+            {"$or": [
+                {"title": {"$regex": "relat|link|edge", "$options": "i"}},
+                {"file_path": {"$regex": r"\.(csv|json)$", "$options": "i"}},
+                {"file_type": {"$in": ["text/csv", "application/json"]}}
+            ]}
         ]
     })
     evidence_list = await ev_cursor.to_list(length=100)
@@ -329,8 +331,10 @@ async def merge_case_duplicate_entities(db, case_id: str) -> int:
         if is_file_name(ent.get("name", "")) and ent.get("source") == "AI_EXTRACTED":
             ent_id_str = str(ent["_id"])
             await db["relationships"].delete_many({
-                "$or": [{"case_id": case_id}, {"caseId": case_id}],
-                "$or": [{"source_entity_id": ent_id_str}, {"target_entity_id": ent_id_str}]
+                "$and": [
+                    {"$or": [{"case_id": case_id}, {"caseId": case_id}]},
+                    {"$or": [{"source_entity_id": ent_id_str}, {"target_entity_id": ent_id_str}]}
+                ]
             })
             await db["entities"].delete_one({"_id": ent["_id"]})
             entities.remove(ent)

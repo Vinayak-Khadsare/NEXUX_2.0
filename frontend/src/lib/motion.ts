@@ -23,16 +23,16 @@ export const navEntrance: Variants = {
 
 export const navGlassVariants: Variants = {
   top: {
-    backgroundColor: "rgba(5, 11, 22, 0)",
-    borderColor: "rgba(59, 130, 246, 0)",
+    backgroundColor: "rgba(0, 0, 0, 0)",
+    borderColor: "rgba(41, 41, 41, 0)",
     boxShadow: "0 0 0 rgba(0,0,0,0)",
     backdropFilter: "blur(0px)",
     transition: { duration: 0.5, ease: cinematicEase },
   },
   scrolled: {
-    backgroundColor: "rgba(5, 11, 22, 0.65)",
-    borderColor: "rgba(59, 130, 246, 0.15)",
-    boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
+    backgroundColor: "rgba(8, 8, 8, 0.85)",
+    borderColor: "#292929",
+    boxShadow: "0 8px 32px rgba(0,0,0,0.8)",
     backdropFilter: "blur(16px)",
     transition: { duration: 0.5, ease: cinematicEase },
   },
@@ -93,7 +93,7 @@ export const cardItem: Variants = {
 
 export const cardHover = {
   y: -6,
-  boxShadow: "0 0 40px rgba(34,211,238,0.2)",
+  boxShadow: "0 0 35px rgba(199, 205, 212, 0.15)",
   transition: { duration: 0.4, ease: cinematicEase },
 };
 

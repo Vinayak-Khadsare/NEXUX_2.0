@@ -77,13 +77,13 @@ export default function Sidebar() {
 
   return (
     <aside 
-      className={`h-full border-r border-[var(--border-primary)] bg-[var(--surface-primary)] flex flex-col z-50 shrink-0 transition-all duration-300 relative ${
+      className={`h-full border-r border-[var(--border-primary)] bg-[var(--surface-nav,var(--surface-primary))] flex flex-col z-50 shrink-0 transition-all duration-300 relative ${
         collapsed ? "w-20" : "w-72"
       }`}
     >
       <button 
         onClick={() => setCollapsed(!collapsed)}
-        className="absolute top-3.5 -right-3.5 h-7 w-7 rounded-full border border-[var(--border-secondary)] bg-[var(--surface-primary)] flex items-center justify-center text-[var(--accent-primary)] hover:text-[var(--accent-secondary)] hover:border-[var(--accent-primary)] hover:bg-[var(--surface-hover)] text-xs cursor-pointer shadow-xl transition-all active:scale-95 z-50"
+        className="absolute top-3.5 -right-3.5 h-7 w-7 rounded-full border border-[var(--border-secondary)] bg-[var(--surface-nav,var(--surface-primary))] flex items-center justify-center text-[var(--accent-primary)] hover:text-[var(--accent-secondary)] hover:border-[var(--accent-primary)] hover:bg-[var(--surface-hover)] text-xs cursor-pointer shadow-xl transition-all active:scale-95 z-50"
         title={collapsed ? "Expand Sidebar" : "Collapse Sidebar"}
         aria-label={collapsed ? "Expand Sidebar" : "Collapse Sidebar"}
         aria-expanded={!collapsed}
@@ -92,7 +92,7 @@ export default function Sidebar() {
       </button>
 
       <div className="p-6 border-b border-[var(--border-primary)] flex items-center gap-3 overflow-hidden">
-        <div className="h-8 w-8 rounded-lg bg-[var(--accent-primary)] flex items-center justify-center font-bold text-base text-white shrink-0">
+        <div className="h-8 w-8 rounded-lg bg-[var(--accent-primary)] flex items-center justify-center font-bold text-base text-white dark:text-black shrink-0">
           N
         </div>
         {!collapsed && (

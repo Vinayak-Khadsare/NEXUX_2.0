@@ -29,10 +29,24 @@ async def create_case(case: CaseCreate, db=Depends(get_database), current_user=D
 @router.get("/", response_model=List[CaseOut], include_in_schema=False)
 async def list_cases(db=Depends(get_database), current_user=Depends(get_current_user)):
     cases = await db["cases"].find().to_list(100)
+    for c in cases:
+        if not c.get("created_at"):
+            c["created_at"] = datetime.utcnow()
+        if not c.get("updated_at"):
+            c["updated_at"] = c.get("created_at")
+        if not c.get("created_by"):
+            c["created_by"] = "system"
     return cases
 
 @router.get("/{case_id}", response_model=CaseOut)
 async def get_case(case_id: str, case=Depends(verify_case_access)):
+    if isinstance(case, dict):
+        if not case.get("created_at"):
+            case["created_at"] = datetime.utcnow()
+        if not case.get("updated_at"):
+            case["updated_at"] = case.get("created_at")
+        if not case.get("created_by"):
+            case["created_by"] = "system"
     return case
 
 @router.put("/{case_id}", response_model=CaseOut)

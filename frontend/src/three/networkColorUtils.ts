@@ -180,10 +180,10 @@ export function getEdgeColorByType(rawType: string, _theme: string = "dark"): Ed
     };
   }
 
-  // 8. ASSOCIATED_WITH / Default / All other relationships
+  // 8. ASSOCIATED_WITH / Default / Standard connections
   return {
-    line: isLight ? "#2563EB" : "#60A5FA",
-    labelColor: isLight ? "#1D4ED8" : "#93C5FD",
+    line: isLight ? "#2563EB" : "#737B84",
+    labelColor: isLight ? "#1D4ED8" : "#A1A1AA",
     category: "ASSOCIATION",
     categoryLabel: "Association",
     style: "dashed",

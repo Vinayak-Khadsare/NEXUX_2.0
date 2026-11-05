@@ -704,12 +704,12 @@ function NetworkView() {
       </aside>
 
       {/* 3D Canvas Visualizer & Control Bars */}
-      <main className="flex-1 relative bg-[var(--surface-secondary)] rounded-2xl overflow-hidden border border-[var(--border-primary)] shadow-inner flex flex-col">
+      <main className="flex-1 relative bg-[var(--surface-secondary)] dark:bg-[#111111] rounded-2xl overflow-hidden border border-[var(--border-primary)] dark:border-[#303030] shadow-inner flex flex-col">
         {/* Top Control Bar: Network Depth + Relationship Filter (Requirements 9 & 10) */}
         <div className="absolute top-4 left-4 right-4 z-20 flex flex-wrap items-center justify-between gap-3 pointer-events-none">
           {/* Left: Depth Control & Active Entity Tag */}
-          <div className="flex items-center gap-2 pointer-events-auto bg-[#0B132B]/90 backdrop-blur-md p-1.5 rounded-xl border border-[var(--border-primary)] shadow-xl">
-            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-2 font-mono">
+          <div className="flex items-center gap-2 pointer-events-auto bg-white/90 dark:bg-[#1C1C1C]/95 backdrop-blur-md p-1.5 rounded-xl border border-[var(--border-primary)] dark:border-[#454545] shadow-xl">
+            <span className="text-[9px] font-black text-slate-500 dark:text-[#A1A1AA] uppercase tracking-widest px-2 font-mono">
               DEPTH
             </span>
             {(["1", "2", "3", "ALL"] as const).map((depth) => (
@@ -718,8 +718,8 @@ function NetworkView() {
                 onClick={() => setNetworkDepth(depth)}
                 className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase transition-all tracking-wider font-mono ${
                   networkDepth === depth
-                    ? "bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/30"
-                    : "text-slate-300 hover:bg-white/10 hover:text-white"
+                    ? "bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/30 dark:bg-[#C7CDD4] dark:text-[#101010] dark:shadow-none"
+                    : "text-slate-600 dark:text-[#A1A1AA] hover:bg-black/5 dark:hover:bg-[#222222] hover:text-black dark:hover:text-[#F5F5F5]"
                 }`}
               >
                 {depth === "ALL" ? "ALL" : `${depth} HOP`}
@@ -728,8 +728,8 @@ function NetworkView() {
           </div>
 
           {/* Right: Relationship Category Filter (Requirement 10) */}
-          <div className="flex items-center gap-1.5 pointer-events-auto bg-[#0B132B]/90 backdrop-blur-md p-1.5 rounded-xl border border-[var(--border-primary)] shadow-xl overflow-x-auto max-w-[620px] custom-scrollbar">
-            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-2 font-mono shrink-0">
+          <div className="flex items-center gap-1.5 pointer-events-auto bg-white/90 dark:bg-[#1C1C1C]/95 backdrop-blur-md p-1.5 rounded-xl border border-[var(--border-primary)] dark:border-[#454545] shadow-xl overflow-x-auto max-w-[620px] custom-scrollbar">
+            <span className="text-[9px] font-black text-slate-500 dark:text-[#A1A1AA] uppercase tracking-widest px-2 font-mono shrink-0">
               RELATIONS
             </span>
             {RELATIONSHIP_CATEGORIES.map((cat) => (
@@ -738,8 +738,8 @@ function NetworkView() {
                 onClick={() => setRelationshipCategory(cat.id)}
                 className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase transition-all whitespace-nowrap tracking-wider font-mono shrink-0 flex items-center gap-1.5 ${
                   relationshipCategory === cat.id
-                    ? "bg-white/15 text-white border border-white/30 shadow-sm"
-                    : "text-slate-400 hover:text-slate-200 hover:bg-white/5"
+                    ? "bg-slate-200 text-slate-900 dark:bg-[#292929] dark:text-[#F5F5F5] border border-slate-300 dark:border-[#454545] shadow-sm"
+                    : "text-slate-500 dark:text-[#A1A1AA] hover:text-slate-800 dark:hover:text-[#F5F5F5] hover:bg-black/5 dark:hover:bg-[#222222]"
                 }`}
               >
                 {cat.id !== "ALL" && (
@@ -758,7 +758,7 @@ function NetworkView() {
           </div>
         ) : loading ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-[var(--surface-primary)] z-10">
-            <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-cyan-400"></div>
+            <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-cyan-400 dark:border-[#C7CDD4]"></div>
             <span className="text-sm text-[var(--text-secondary)] font-mono">
               Rendering 3D graph structures...
             </span>
@@ -781,14 +781,14 @@ function NetworkView() {
         {/* Compact Bottom-Right Graph Legend (Requirement 11) */}
         <div className="absolute bottom-4 right-4 z-20 flex flex-col items-end">
           {legendOpen ? (
-            <div className="p-3 rounded-xl bg-[#0B132B]/95 backdrop-blur-md border border-[var(--border-primary)] shadow-2xl w-[260px] animate-fade-in font-sans text-xs">
-              <div className="flex justify-between items-center border-b border-white/10 pb-1.5 mb-2">
-                <span className="text-[10px] font-black text-cyan-400 uppercase tracking-widest font-mono flex items-center gap-1.5">
+            <div className="p-3 rounded-xl bg-white/95 dark:bg-[#1C1C1C]/95 backdrop-blur-md border border-[var(--border-primary)] dark:border-[#454545] shadow-2xl w-[260px] animate-fade-in font-sans text-xs">
+              <div className="flex justify-between items-center border-b border-slate-200 dark:border-[#303030] pb-1.5 mb-2">
+                <span className="text-[10px] font-black text-cyan-600 dark:text-[#C7CDD4] uppercase tracking-widest font-mono flex items-center gap-1.5">
                   <FontAwesomeIcon icon={faInfoCircle} /> GRAPH LEGEND
                 </span>
                 <button
                   onClick={() => setLegendOpen(false)}
-                  className="text-slate-400 hover:text-white text-[10px] p-0.5"
+                  className="text-slate-400 hover:text-slate-700 dark:text-[#858B93] dark:hover:text-[#F5F5F5] text-[10px] p-0.5"
                   title="Minimize legend"
                 >
                   <FontAwesomeIcon icon={faChevronDown} />
@@ -797,10 +797,10 @@ function NetworkView() {
 
               {/* Entity Types (Requirement 11) */}
               <div className="mb-2">
-                <span className="text-[9px] font-mono text-slate-400 uppercase tracking-wider block mb-1">
+                <span className="text-[9px] font-mono text-slate-500 dark:text-[#858B93] uppercase tracking-wider block mb-1">
                   Entity Types
                 </span>
-                <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-[10px] text-slate-300">
+                <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-[10px] text-slate-700 dark:text-[#D4D4D8]">
                   <span className="flex items-center gap-1.5">
                     <span className="text-blue-400">●</span> Person
                   </span>
@@ -823,8 +823,8 @@ function NetworkView() {
               </div>
 
               {/* Relationships (Requirement 11) */}
-              <div className="border-t border-white/10 pt-1.5">
-                <span className="text-[9px] font-mono text-slate-400 uppercase tracking-wider block mb-1">
+              <div className="border-t border-slate-200 dark:border-[#303030] pt-1.5">
+                <span className="text-[9px] font-mono text-slate-500 dark:text-[#858B93] uppercase tracking-wider block mb-1">
                   Relationships
                 </span>
                 <div className="space-y-0.5 text-[10px] font-mono">
@@ -844,7 +844,7 @@ function NetworkView() {
                     <span>Location</span>
                     <span className="tracking-tighter font-bold">──────</span>
                   </div>
-                  <div className="flex justify-between items-center text-[#60A5FA]">
+                  <div className="flex justify-between items-center text-[#737B84]">
                     <span>Association</span>
                     <span className="tracking-tighter font-bold">- - - -</span>
                   </div>
@@ -866,7 +866,7 @@ function NetworkView() {
           ) : (
             <button
               onClick={() => setLegendOpen(true)}
-              className="px-3 py-1.5 rounded-xl bg-[#0B132B]/90 hover:bg-[#0B132B] backdrop-blur-md border border-[var(--border-primary)] text-cyan-400 text-xs font-bold font-mono uppercase tracking-wider flex items-center gap-2 shadow-xl"
+              className="px-3 py-1.5 rounded-xl bg-white/90 hover:bg-white dark:bg-[#1C1C1C]/95 dark:hover:bg-[#222222] backdrop-blur-md border border-[var(--border-primary)] dark:border-[#454545] text-cyan-600 dark:text-[#C7CDD4] text-xs font-bold font-mono uppercase tracking-wider flex items-center gap-2 shadow-xl"
             >
               <FontAwesomeIcon icon={faInfoCircle} />
               <span>Legend</span>

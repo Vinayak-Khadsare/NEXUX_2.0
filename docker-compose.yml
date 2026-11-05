@@ -3,6 +3,8 @@ services:
     image: mongo:latest
     container_name: nexus_mongodb
     restart: unless-stopped
+    ports:
+      - "${MONGO_PORT:-27018}:27017"
     volumes:
       - mongodb_data:/data/db
     networks:
@@ -28,7 +30,7 @@ services:
       - MONGODB_URI=mongodb://mongodb:27017
       - DATABASE_NAME=${DATABASE_NAME:-nexus}
       - JWT_SECRET=${JWT_SECRET:-supersecretkey}
-      - NEXUS_LOCAL_AI_URL=${NEXUS_LOCAL_AI_URL:-http://ollama:11434}
+      - NEXUS_LOCAL_AI_URL=http://ollama:11434
       - NEXUS_LOCAL_AI_MODEL=${NEXUS_LOCAL_AI_MODEL:-qwen2.5:7b}
       - NEXUS_LOCAL_AI_TIMEOUT=${NEXUS_LOCAL_AI_TIMEOUT:-300}
       - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
@@ -49,13 +51,16 @@ services:
     image: ollama/ollama:latest
     container_name: nexus_ollama
     restart: unless-stopped
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
+    ports:
+      - "11434:11434"
+    # Uncomment deploy block if NVIDIA Container Toolkit / GPU passthrough is active in WSL:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
     volumes:
       - ollama_data:/root/.ollama
     networks:

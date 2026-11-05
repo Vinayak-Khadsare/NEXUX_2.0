@@ -58,7 +58,7 @@ export default function TopBar() {
   const currentCase = cases.find(c => c._id === activeCaseId) || activeCase;
 
   return (
-    <header className="h-14 border-b border-[var(--border-primary)] bg-[var(--surface-primary)] flex items-center justify-between px-4 z-40 relative shadow-sm">
+    <header className="h-14 border-b border-[var(--border-primary)] bg-[var(--surface-nav,var(--surface-primary))] flex items-center justify-between px-4 z-40 relative shadow-sm">
       {/* Left: Active Case & System Status */}
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2 px-2.5 py-1 rounded-md bg-[var(--surface-secondary)] border border-[var(--border-primary)] transition-all duration-200 cursor-default">
@@ -145,7 +145,7 @@ export default function TopBar() {
 
         {/* AI Shortcut */}
         <button 
-          className="px-3 py-1.5 text-xs font-bold bg-[var(--accent-primary)] text-white rounded-md hover:bg-[var(--accent-hover)] focus:ring-2 focus:ring-[var(--accent-primary)] focus:ring-offset-1 focus:ring-offset-[var(--surface-primary)] active:scale-95 transition-all duration-200 flex items-center gap-2 border border-transparent shadow-sm"
+          className="px-3 py-1.5 text-xs font-bold bg-[var(--accent-primary)] text-white dark:text-[#101010] rounded-md hover:bg-[var(--accent-hover)] focus:ring-2 focus:ring-[var(--accent-primary)] focus:ring-offset-1 focus:ring-offset-[var(--surface-primary)] active:scale-95 transition-all duration-200 flex items-center gap-2 border border-transparent shadow-sm"
           title="Ask NEXUS AI"
         >
           <i className="fa-solid fa-robot"></i> AI

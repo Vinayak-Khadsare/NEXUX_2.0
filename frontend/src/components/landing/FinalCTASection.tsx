@@ -8,9 +8,9 @@ import GetStartedButton from '../ui/GetStartedButton';
 
 export default function FinalCTASection() {
   return (
-    <section className="py-section bg-nexus-bg-base relative z-20 border-t border-nexus-glass-border overflow-hidden">
+    <section className="py-section bg-[#000000] relative z-20 border-t border-[#292929] overflow-hidden">
       {/* Background radial gradient */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-3xl h-[600px] bg-nexus-accent-primary/5 rounded-full blur-[120px] pointer-events-none"></div>
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-3xl h-[600px] bg-[#C7CDD4]/5 rounded-full blur-[120px] pointer-events-none"></div>
 
       <motion.div 
         className="max-w-4xl mx-auto px-6 text-center relative z-10"
@@ -19,10 +19,10 @@ export default function FinalCTASection() {
         viewport={sectionRevealViewport}
         variants={ctaReveal}
       >
-        <h2 className="text-display-md md:text-display-lg font-display font-black text-nexus-text-primary tracking-tight mb-6">
+        <h2 className="text-display-md md:text-display-lg font-display font-black text-[#F5F5F5] tracking-tight mb-6">
           {finalCtaContent.heading}
         </h2>
-        <p className="text-nexus-text-secondary font-body font-light text-xl mb-12 max-w-2xl mx-auto">
+        <p className="text-[#A1A1AA] font-body font-light text-xl mb-12 max-w-2xl mx-auto">
           {finalCtaContent.description}
         </p>
 

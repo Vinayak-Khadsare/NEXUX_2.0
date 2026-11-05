@@ -85,12 +85,12 @@ export default function ResetPassword() {
   if (!resetToken) return null; // Avoid flicker
 
   return (
-    <div className="min-h-screen bg-[var(--app-background)] dark:text-slate-200 text-[var(--text-primary)] flex flex-col items-center justify-center p-6 relative overflow-y-auto font-sans">
+    <div className="min-h-screen bg-[var(--app-background)] dark:text-[#F5F5F5] text-[var(--text-primary)] flex flex-col items-center justify-center p-6 relative overflow-y-auto font-sans">
       
       {/* Background Ambience */}
       <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-blue-500/50 to-transparent"></div>
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-blue-600/5 rounded-full blur-[120px]"></div>
+        <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-blue-500/50 dark:via-[#C7CDD4]/20 to-transparent"></div>
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-blue-600/5 dark:bg-[#C7CDD4]/5 rounded-full blur-[120px]"></div>
         <div className="absolute bottom-0 inset-x-0 h-1/2 bg-gradient-to-t dark:from-black from-transparent to-transparent"></div>
         <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center opacity-[0.02]"></div>
       </div>
@@ -99,11 +99,11 @@ export default function ResetPassword() {
         {/* Header / Logo Area */}
         <div className="flex flex-col items-center gap-3 mb-8">
           <div className="relative flex items-center justify-center h-16 w-16 rounded-xl bg-[var(--surface-primary)] border border-[var(--border)] shadow-xl">
-            <i className="fa-solid fa-lock text-3xl text-blue-500"></i>
+            <i className="fa-solid fa-lock text-3xl text-blue-500 dark:text-[#C7CDD4]"></i>
           </div>
           <div className="text-center">
-            <h1 className="text-3xl font-bold tracking-wider dark:text-slate-100 text-[var(--text-primary)]">CREATE NEW PASSWORD</h1>
-            <p className="text-xs font-mono dark:text-slate-400 text-[var(--text-muted)] uppercase tracking-[0.2em] mt-1">
+            <h1 className="text-3xl font-bold tracking-wider dark:text-[#F5F5F5] text-[var(--text-primary)]">CREATE NEW PASSWORD</h1>
+            <p className="text-xs font-mono dark:text-[#A1A1AA] text-[var(--text-muted)] uppercase tracking-[0.2em] mt-1">
               Secure Intelligence Platform
             </p>
           </div>
@@ -112,7 +112,7 @@ export default function ResetPassword() {
         {/* Form Container */}
         <div className="w-full bg-[var(--surface-primary)] border border-[var(--border)] p-8 rounded-2xl shadow-2xl relative">
           
-          <h2 className="text-lg font-semibold dark:text-slate-100 text-[var(--text-primary)] mb-6 text-center">
+          <h2 className="text-lg font-semibold dark:text-[#F5F5F5] text-[var(--text-primary)] mb-6 text-center">
             Secure Account
           </h2>
 
@@ -129,18 +129,18 @@ export default function ResetPassword() {
 
           {success ? (
             <div className="flex flex-col items-center gap-6 py-4">
-              <Link href="/login" className="w-full p-4 bg-blue-600 hover:bg-blue-500 rounded-lg font-bold shadow-lg shadow-blue-900/20 active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2 text-white text-sm uppercase tracking-wider">
+              <Link href="/login" className="w-full p-4 bg-blue-600 hover:bg-blue-500 dark:bg-[#C7CDD4] dark:hover:bg-[#F5F5F5] dark:text-black dark:shadow-none rounded-lg font-bold shadow-lg shadow-blue-900/20 active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2 text-white text-sm uppercase tracking-wider">
                 <i className="fa-solid fa-right-to-bracket"></i> Return to Login
               </Link>
             </div>
           ) : (
             <form onSubmit={handleReset} className="flex flex-col gap-5">
               <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] font-bold dark:text-slate-400 text-[var(--text-muted)] uppercase tracking-widest pl-1">New Password</label>
+                <label className="text-[10px] font-bold dark:text-[#A1A1AA] text-[var(--text-muted)] uppercase tracking-widest pl-1">New Password</label>
                 <div className="relative">
-                  <i className="fa-solid fa-key absolute left-4 top-1/2 -translate-y-1/2 dark:text-slate-500 text-[var(--text-muted)] text-xs"></i>
-                  <input type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} className="w-full p-2.5 pl-10 pr-10 rounded-lg bg-[var(--app-background)] border border-[var(--border)] focus:outline-none focus:border-blue-500 text-xs dark:text-slate-200 text-[var(--text-primary)] placeholder-slate-600 transition-all font-mono tracking-widest" placeholder="••••••••" required />
-                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 dark:text-slate-500 text-[var(--text-muted)] hover:dark:text-slate-300 text-[var(--text-secondary)] transition-colors">
+                  <i className="fa-solid fa-key absolute left-4 top-1/2 -translate-y-1/2 dark:text-[#858B93] text-[var(--text-muted)] text-xs"></i>
+                  <input type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} className="w-full p-2.5 pl-10 pr-10 rounded-lg bg-[var(--app-background)] border border-[var(--border)] focus:outline-none focus:border-blue-500 dark:focus:border-[#C7CDD4] text-xs dark:text-[#F5F5F5] text-[var(--text-primary)] placeholder-[var(--text-muted)] transition-all font-mono tracking-widest" placeholder="••••••••" required />
+                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 dark:text-[#858B93] text-[var(--text-muted)] hover:dark:text-[#D4D4D8] text-[var(--text-secondary)] transition-colors">
                     <i className={`fa-solid ${showPassword ? "fa-eye-slash" : "fa-eye"}`}></i>
                   </button>
                 </div>
@@ -153,7 +153,7 @@ export default function ResetPassword() {
                         <div key={level} className={`flex-1 rounded-full ${strength >= level ? (strength === 5 ? "bg-emerald-500" : strength >= 3 ? "bg-blue-500" : "bg-red-500") : "bg-[var(--border)]"}`}></div>
                       ))}
                     </div>
-                    <div className="text-[9px] font-mono dark:text-slate-500 text-[var(--text-muted)] space-y-1">
+                    <div className="text-[9px] font-mono dark:text-[#858B93] text-[var(--text-muted)] space-y-1">
                       <p className={password.length >= 8 ? "text-emerald-400" : ""}>
                         <i className={`fa-solid mr-1 ${password.length >= 8 ? "fa-check" : "fa-xmark"}`}></i> 8+ characters
                       </p>
@@ -175,11 +175,11 @@ export default function ResetPassword() {
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] font-bold dark:text-slate-400 text-[var(--text-muted)] uppercase tracking-widest pl-1">Confirm Password</label>
+                <label className="text-[10px] font-bold dark:text-[#A1A1AA] text-[var(--text-muted)] uppercase tracking-widest pl-1">Confirm Password</label>
                 <div className="relative">
-                  <i className="fa-solid fa-lock absolute left-4 top-1/2 -translate-y-1/2 dark:text-slate-500 text-[var(--text-muted)] text-xs"></i>
-                  <input type={showConfirmPassword ? "text" : "password"} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="w-full p-2.5 pl-10 pr-10 rounded-lg bg-[var(--app-background)] border border-[var(--border)] focus:outline-none focus:border-blue-500 text-xs dark:text-slate-200 text-[var(--text-primary)] placeholder-slate-600 transition-all font-mono tracking-widest" placeholder="••••••••" required />
-                  <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 dark:text-slate-500 text-[var(--text-muted)] hover:dark:text-slate-300 text-[var(--text-secondary)] transition-colors">
+                  <i className="fa-solid fa-lock absolute left-4 top-1/2 -translate-y-1/2 dark:text-[#858B93] text-[var(--text-muted)] text-xs"></i>
+                  <input type={showConfirmPassword ? "text" : "password"} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="w-full p-2.5 pl-10 pr-10 rounded-lg bg-[var(--app-background)] border border-[var(--border)] focus:outline-none focus:border-blue-500 dark:focus:border-[#C7CDD4] text-xs dark:text-[#F5F5F5] text-[var(--text-primary)] placeholder-[var(--text-muted)] transition-all font-mono tracking-widest" placeholder="••••••••" required />
+                  <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 dark:text-[#858B93] text-[var(--text-muted)] hover:dark:text-[#D4D4D8] text-[var(--text-secondary)] transition-colors">
                     <i className={`fa-solid ${showConfirmPassword ? "fa-eye-slash" : "fa-eye"}`}></i>
                   </button>
                 </div>
@@ -195,7 +195,7 @@ export default function ResetPassword() {
               <button 
                 type="submit" 
                 disabled={loading || strength < 5 || password !== confirmPassword}
-                className="mt-4 p-4 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-900/40 disabled:text-blue-200/40 disabled:cursor-not-allowed rounded-lg font-bold shadow-lg shadow-blue-900/20 active:scale-[0.98] transition-all duration-200 w-full flex items-center justify-center gap-2 text-white text-sm uppercase tracking-wider"
+                className="mt-4 p-4 bg-blue-600 hover:bg-blue-500 dark:bg-[#C7CDD4] dark:hover:bg-[#F5F5F5] dark:text-black dark:shadow-none disabled:bg-blue-900/40 disabled:text-blue-200/40 dark:disabled:bg-[#191919] dark:disabled:text-[#858B93] disabled:cursor-not-allowed rounded-lg font-bold shadow-lg shadow-blue-900/20 active:scale-[0.98] transition-all duration-200 w-full flex items-center justify-center gap-2 text-white text-sm uppercase tracking-wider"
               >
                 {loading ? (
                   <>
@@ -211,7 +211,7 @@ export default function ResetPassword() {
               </button>
               
               <div className="flex justify-center mt-2 border-t border-[var(--border)] pt-4">
-                <Link href="/login" className="text-[10px] dark:text-slate-400 text-slate-500 hover:dark:text-slate-300 hover:text-slate-600 transition-colors uppercase font-bold tracking-wider">
+                <Link href="/login" className="text-[10px] dark:text-[#A1A1AA] text-slate-500 hover:dark:text-[#D4D4D8] hover:text-slate-600 transition-colors uppercase font-bold tracking-wider">
                   Cancel
                 </Link>
               </div>
@@ -221,7 +221,7 @@ export default function ResetPassword() {
         
         {/* Footer Security Notice */}
         <div className="mt-8 flex flex-col items-center gap-2">
-          <p className="text-center text-[10px] font-mono dark:text-slate-500 text-[var(--text-muted)] uppercase tracking-widest flex items-center gap-2">
+          <p className="text-center text-[10px] font-mono dark:text-[#858B93] text-[var(--text-muted)] uppercase tracking-widest flex items-center gap-2">
             <i className="fa-solid fa-shield-halved mr-1"></i> 256-BIT ENCRYPTED CHANNEL
           </p>
         </div>

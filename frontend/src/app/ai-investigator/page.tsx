@@ -96,11 +96,11 @@ export default function AiInvestigatorPage() {
             <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-thin">
               {messages.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-center p-8 max-w-md mx-auto">
-                  <div className="relative flex items-center justify-center w-16 h-16 text-blue-400 drop-shadow-[0_0_15px_rgba(59,130,246,0.5)] mb-4 mx-auto">
+                  <div className="relative flex items-center justify-center w-16 h-16 text-blue-400 dark:text-[#C7CDD4] drop-shadow-[0_0_15px_rgba(59,130,246,0.5)] dark:drop-shadow-[0_0_15px_rgba(199,205,212,0.3)] mb-4 mx-auto">
                     <svg className="absolute inset-0 w-full h-full text-[var(--accent-primary)]/80" viewBox="0 0 100 100">
-                      <polygon points="50,2 98,26 98,74 50,98 2,74 2,26" fill="rgba(37, 99, 235, 0.2)" stroke="currentColor" strokeWidth="5" />
+                      <polygon points="50,2 98,26 98,74 50,98 2,74 2,26" fill="currentColor" fillOpacity="0.1" stroke="currentColor" strokeWidth="5" />
                     </svg>
-                    <span className="font-extrabold text-white text-2xl z-10">N</span>
+                    <span className="font-extrabold text-white dark:text-[#F5F5F5] text-2xl z-10">N</span>
                   </div>
                   <h3 className="text-lg font-extrabold text-[var(--text-primary)]">NEXUS Investigation Agent</h3>
                   <p className="text-xs text-[var(--text-secondary)] mt-2 leading-relaxed">
@@ -116,7 +116,7 @@ export default function AiInvestigatorPage() {
 
                     <div className={`p-4 text-sm leading-relaxed shadow-lg ${
                       msg.sender === "user" 
-                        ? "bg-gradient-to-br from-[var(--primary-accent)] to-blue-700 text-white rounded-2xl rounded-tr-sm" 
+                        ? "bg-gradient-to-br from-[var(--primary-accent)] to-blue-700 dark:to-[#858B93] text-white dark:text-black rounded-2xl rounded-tr-sm" 
                         : "bg-[var(--surface-secondary)] border border-[var(--border-primary)] text-[var(--text-primary)] rounded-2xl rounded-tl-sm"
                     }`}>
                       <div className="whitespace-pre-wrap markdown-container">
@@ -169,7 +169,7 @@ export default function AiInvestigatorPage() {
                   value={inputValue} onChange={(e) => setInputValue(e.target.value)} disabled={sending} required
                   className="flex-1 px-4 py-3 rounded-xl bg-[var(--surface-primary)] border border-[var(--border-primary)] text-sm focus:outline-none focus:border-[var(--accent-primary)] text-[var(--text-primary)] transition-colors shadow-inner chat-input-field"
                 />
-                <button type="submit" disabled={sending || !inputValue.trim()} className="px-6 py-3 bg-[var(--accent-primary)] hover:bg-[var(--accent-secondary)] disabled:opacity-50 text-white rounded-xl text-xs font-bold uppercase tracking-wider transition-all active:scale-95 shadow-[0_0_20px_var(--accent-primary)] hover:shadow-[0_0_30px_var(--accent-secondary)]">
+                <button type="submit" disabled={sending || !inputValue.trim()} className="px-6 py-3 bg-[var(--accent-primary)] hover:bg-[var(--accent-secondary)] disabled:opacity-50 text-white dark:text-black rounded-xl text-xs font-bold uppercase tracking-wider transition-all active:scale-95 shadow-[0_0_20px_var(--accent-primary)] dark:shadow-none hover:shadow-[0_0_30px_var(--accent-secondary)]">
                   {sending ? "Analyzing..." : "Query"}
                 </button>
               </form>
