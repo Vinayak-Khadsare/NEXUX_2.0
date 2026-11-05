@@ -63,57 +63,9 @@ export function Hero() {
           </motion.div>
         </motion.div>
 
-        <div className="relative h-[480px] lg:h-[640px] flex items-center justify-center">
-          <div className="absolute inset-0 z-0">
+        <div className="relative h-[500px] lg:h-[680px] w-full flex items-center justify-center">
+          <div className="w-full h-full">
             <InvestigatorHeroVisualizer />
-          </div>
-          
-          {/* Circular HUD Hexagons Overlay */}
-          <div className="absolute inset-0 z-10 pointer-events-none flex items-center justify-center hidden md:flex">
-            {[
-              { icon: "fa-solid fa-users", angle: 25 },
-              { icon: "fa-solid fa-location-dot", angle: 90 },
-              { icon: "fa-solid fa-chart-simple", angle: 145 },
-              { icon: "fa-regular fa-file-lines", angle: 205 },
-              { icon: "fa-solid fa-shield-halved", angle: 270 },
-              { icon: "fa-solid fa-brain", angle: 335 }
-            ].map((node, i) => {
-              const radius = 240; 
-              const x = Math.sin((node.angle * Math.PI) / 180) * radius;
-              const y = -Math.cos((node.angle * Math.PI) / 180) * radius;
-              
-              return (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, scale: 0.5 }}
-                  animate={{ opacity: 1, scale: 1, y: [y, y - 5, y] }}
-                  transition={{ 
-                    opacity: { delay: 0.5 + i * 0.1, duration: 0.8 },
-                    scale: { delay: 0.5 + i * 0.1, duration: 0.8 },
-                    y: { repeat: Infinity, duration: 4, ease: "easeInOut", delay: i * 0.5 }
-                  }}
-                  className="absolute"
-                  style={{ left: `calc(50% + ${x}px)`, top: `calc(50% + ${y}px)`, transform: 'translate(-50%, -50%)' }}
-                >
-                  <div className="relative flex items-center justify-center w-14 h-14 text-[#C7CDD4]">
-                    <svg className="absolute inset-0 w-full h-full text-[#292929]" viewBox="0 0 100 100">
-                      <polygon points="50,2 98,26 98,74 50,98 2,74 2,26" fill="rgba(17, 17, 17, 0.85)" stroke="currentColor" strokeWidth="1.5" className="backdrop-blur-sm" />
-                    </svg>
-                    <i className={`${node.icon} text-lg z-10 drop-shadow-[0_0_8px_rgba(199,205,212,0.6)]`}></i>
-                  </div>
-                </motion.div>
-              );
-            })}
-            
-            {/* Center NEXUS Typography */}
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 1, duration: 1 }}
-              className="absolute font-display text-2xl font-bold tracking-[0.25em] text-[#F5F5F5] pointer-events-auto cursor-default drop-shadow-[0_0_15px_rgba(199,205,212,0.4)]"
-            >
-              NEXUS
-            </motion.div>
           </div>
         </div>
       </div>

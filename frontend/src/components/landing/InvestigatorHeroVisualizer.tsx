@@ -100,51 +100,57 @@ export default function InvestigatorHeroVisualizer() {
       
       {/* 3D Canvas Visualizer */}
       <Canvas
-        camera={{ position: [0, 0.45, 4.3], fov: 42 }}
+        camera={{ position: [0, 0.48, 3.8], fov: 38 }}
         dpr={[1, 2]}
         gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
         className="w-full h-full cursor-grab active:cursor-grabbing"
       >
         {/* Soft Background Depth Fog */}
-        <fog attach="fog" args={["#080808", 6, 18]} />
+        <fog attach="fog" args={["#080808", 7, 20]} />
 
         {/* Studio Lighting Rig matching NEXUS Charcoal & Platinum Identity */}
-        <ambientLight intensity={0.65} color="#181B22" />
+        <ambientLight intensity={0.75} color="#1D2128" />
         
-        {/* Key Light (Front-Left, crisp daylight neutral) */}
+        {/* Key Light (Front-Left, crisp neutral illumination on face and badge) */}
         <directionalLight
-          position={[3.2, 3.5, 4.0]}
-          intensity={2.4}
+          position={[3.0, 3.2, 3.8]}
+          intensity={2.6}
           color="#F5F5F5"
-          castShadow
         />
 
-        {/* Fill Light (Front-Right, cool slate) */}
+        {/* Fill Light (Front-Right, cool slate tone to balance shadows) */}
         <directionalLight
-          position={[-3.5, 1.2, 3.0]}
-          intensity={0.9}
-          color="#858B93"
+          position={[-3.2, 1.4, 3.0]}
+          intensity={1.1}
+          color="#94A3B8"
         />
 
-        {/* Platinum Silver Rim Light 1 (Rear-Left for sharp shoulder/cap silhouette) */}
+        {/* Front Soft Center Fill (Ensures face is clearly visible without harsh shadows) */}
         <directionalLight
-          position={[3.0, 2.8, -3.2]}
-          intensity={3.8}
+          position={[0, 0.8, 3.5]}
+          intensity={0.6}
+          color="#E2E8F0"
+        />
+
+        {/* Platinum Silver Rim Light 1 (Rear-Left for sharp shoulder & cap silhouette) */}
+        <directionalLight
+          position={[3.2, 2.6, -3.2]}
+          intensity={4.2}
           color="#C7CDD4"
         />
 
-        {/* Platinum Silver Rim Light 2 (Rear-Right edge highlight) */}
+        {/* Platinum Silver Rim Light 2 (Rear-Right edge highlight for 360° definition) */}
         <directionalLight
-          position={[-3.0, 2.2, -3.2]}
-          intensity={3.2}
+          position={[-3.2, 2.2, -3.2]}
+          intensity={3.6}
           color="#AEB7C2"
         />
 
-        {/* Overhead Badge & Insignia Highlight */}
+        {/* Overhead Badge & Insignia Spotlight */}
         <pointLight
-          position={[0, 3.8, 1.2]}
-          intensity={1.6}
-          color="#E2E8F0"
+          position={[0, 3.6, 1.0]}
+          intensity={1.8}
+          color="#F8FAFC"
           distance={8}
         />
 
@@ -162,15 +168,15 @@ export default function InvestigatorHeroVisualizer() {
         {/* 360-Degree Orbit Controls with sensible damping and vertical angle limits */}
         <OrbitControls
           ref={controlsRef}
-          target={[0, 0.35, 0]}
+          target={[0, 0.42, 0]}
           enablePan={false}
           enableZoom={true}
           enableDamping={true}
           dampingFactor={0.06}
-          minDistance={2.6}
-          maxDistance={6.0}
-          minPolarAngle={Math.PI / 2.8} // Prevents looking excessively from above
-          maxPolarAngle={Math.PI / 1.78} // Prevents looking from underneath
+          minDistance={2.2}
+          maxDistance={5.5}
+          minPolarAngle={Math.PI / 3.2} // Prevents looking excessively from above
+          maxPolarAngle={Math.PI / 1.72} // Prevents looking from underneath
           minAzimuthAngle={-Infinity} // Full 360° horizontal drag
           maxAzimuthAngle={Infinity}
         />
@@ -274,3 +280,4 @@ export default function InvestigatorHeroVisualizer() {
     </div>
   );
 }
+
